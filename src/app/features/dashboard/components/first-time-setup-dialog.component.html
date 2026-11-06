@@ -1,0 +1,23 @@
+<div class="workspace-modal-backdrop workspace-modal-backdrop--blocking" (keydown)="blockEscape($event)">
+  <section class="workspace-modal first-time-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description" tabindex="-1">
+    <p class="workspace-modal__eyebrow">{{ 'onboarding.kicker' | translate }}</p>
+    <h2 id="setup-title">{{ 'onboarding.title' | translate }}</h2>
+    <p id="setup-description" class="workspace-modal__description">{{ 'onboarding.description' | translate }}</p>
+    <div class="first-time-options">
+      <button class="first-time-option" type="button" autofocus [disabled]="isSaving" (click)="choose.emit('personal')">
+        <span class="first-time-option__badge">{{ 'onboarding.defaultBadge' | translate }}</span>
+        <span class="first-time-option__icon first-time-option__icon--personal" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.1"></circle><path d="M5.7 20c.4-3.3 2.9-5.4 6.3-5.4s5.9 2.1 6.3 5.4"></path></svg></span>
+        <strong>{{ 'onboarding.personalTitle' | translate }}</strong>
+        <span class="first-time-option__description">{{ 'onboarding.personalDescription' | translate }}</span>
+      </button>
+      <button class="first-time-option first-time-option--business" type="button" [disabled]="isSaving" (click)="choose.emit('new-business')">
+        <span class="first-time-option__badge first-time-option__badge--recommended">{{ 'onboarding.recommendedBadge' | translate }}</span>
+        <span class="first-time-option__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h2v2H9zm4 0h2v2h-2zM9 12h2v2H9zm4 0h2v2h-2zM9 17h6"></path></svg></span>
+        <strong>{{ 'onboarding.businessTitle' | translate }}</strong>
+        <span class="first-time-option__description">{{ 'onboarding.businessDescription' | translate }}</span>
+      </button>
+    </div>
+    <p class="workspace-modal__error" *ngIf="errorKey" role="alert">{{ errorKey | translate }}</p>
+    <p class="workspace-modal__saving" *ngIf="isSaving" role="status">{{ 'onboarding.saving' | translate }}</p>
+  </section>
+</div>

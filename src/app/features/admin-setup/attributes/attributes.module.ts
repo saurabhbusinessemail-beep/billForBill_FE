@@ -1,0 +1,2 @@
+import { CommonModule } from '@angular/common'; import { NgModule } from '@angular/core'; import { RouterModule } from '@angular/router'; import { AdminCatalogSharedModule } from '../shared/admin-catalog-shared.module'; import { CatalogPageComponent } from '../shared/catalog-page.component';
+@NgModule({ imports: [CommonModule, AdminCatalogSharedModule, RouterModule.forChild([{ path: '', component: CatalogPageComponent, data: { kind: 'attributes' } }])] }) export class AttributesModule {}

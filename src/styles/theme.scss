@@ -1,0 +1,76 @@
+$theme-light: (
+  page: #f2f3ff,
+  page-wash: #e9ebff,
+  surface: #ffffff,
+  surface-raised: #ffffff,
+  text: #1c2341,
+  text-muted: #68708a,
+  text-subtle: #6e758f,
+  border: #e1e4f1,
+  border-strong: #cdd2e5,
+  primary: #625cf5,
+  primary-text: #625cf5,
+  primary-hover: #5049e6,
+  on-primary: #ffffff,
+  focus: #8984ff,
+  success: #13745f,
+  success-soft: #e7f8f3,
+  info: #3a5fb5,
+  info-soft: #edf2ff,
+  warning: #a84b00,
+  warning-soft: #fff4e8,
+  danger: #b63b50,
+  danger-soft: #fff0f2,
+  grid: rgba(98, 92, 245, 0.075),
+  orb-primary: rgba(111, 103, 255, 0.14),
+  orb-secondary: rgba(75, 211, 193, 0.14),
+  shadow: rgba(33, 40, 92, 0.13),
+  button-shadow: rgba(98, 92, 245, 0.24)
+);
+
+$theme-dark: (
+  page: #090d20,
+  page-wash: #111832,
+  surface: #10162c,
+  surface-raised: #151c35,
+  text: #f4f5ff,
+  text-muted: #a7aec7,
+  text-subtle: #858eab,
+  border: #28304d,
+  border-strong: #3b4566,
+  primary: #625cf5,
+  primary-text: #b8b5ff,
+  primary-hover: #5049e6,
+  on-primary: #ffffff,
+  focus: #a8a2ff,
+  success: #5bd4b6,
+  success-soft: #132f35,
+  info: #86b7ff,
+  info-soft: #162941,
+  warning: #f2c76f,
+  warning-soft: #342b1b,
+  danger: #ff8b9a,
+  danger-soft: #39212d,
+  grid: rgba(171, 179, 232, 0.07),
+  orb-primary: rgba(99, 89, 255, 0.2),
+  orb-secondary: rgba(38, 196, 179, 0.13),
+  shadow: rgba(0, 0, 0, 0.34),
+  button-shadow: rgba(100, 92, 255, 0.26)
+);
+
+@mixin emit-theme($palette) {
+  @each $name, $value in $palette {
+    --theme-#{$name}: #{$value};
+  }
+}
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  @include emit-theme($theme-light);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  @include emit-theme($theme-dark);
+}

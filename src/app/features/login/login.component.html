@@ -1,0 +1,139 @@
+<main class="auth-page auth-page--loading" *ngIf="!languageService.ready()" aria-busy="true">
+  <span class="language-loading-indicator" aria-hidden="true"></span>
+</main>
+<main class="auth-page" *ngIf="languageService.ready()" [attr.lang]="languageService.currentLanguage()">
+  <div class="auth-shell">
+    <header class="auth-topbar">
+      <a class="brand-lockup" routerLink="/login" [attr.aria-label]="'brand.signIn' | translate">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span class="brand-name">BillForBill<span class="brand-caption">{{ 'brand.workspace' | translate }}</span></span>
+      </a>
+      <div class="auth-topbar__controls">
+        <label class="language-select-wrap">
+          <span class="visually-hidden">{{ 'language.label' | translate }}</span>
+          <select class="language-select" [value]="languageService.currentLanguage()" (change)="languageService.setLanguage($any($event.target).value)" [attr.aria-label]="'language.label' | translate">
+            <option value="en">{{ 'language.english' | translate }}</option>
+            <option value="hi">{{ 'language.hindi' | translate }}</option>
+          </select>
+          <span class="select-caret" aria-hidden="true">⌄</span>
+        </label>
+        <button
+          class="theme-toggle"
+          type="button"
+          role="switch"
+          [attr.aria-checked]="themeService.currentTheme() === 'dark'"
+          [attr.aria-label]="(themeService.currentTheme() === 'dark' ? 'theme.darkEnabled' : 'theme.lightEnabled') | translate"
+          (click)="toggleTheme()"
+        >
+          <span class="theme-toggle__label">{{ (themeService.currentTheme() === 'dark' ? 'theme.dark' : 'theme.light') | translate }}</span>
+          <span class="theme-toggle__track" aria-hidden="true"><span class="theme-toggle__thumb"></span></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="auth-layout">
+      <section class="story-panel" [attr.aria-label]="'overview.label' | translate">
+        <p class="story-kicker"><span class="status-dot" aria-hidden="true"></span> {{ 'overview.kicker' | translate }}</p>
+        <h1>{{ 'overview.title' | translate }}<br /><span>{{ 'overview.titleAccent' | translate }}</span></h1>
+        <p class="story-copy">{{ 'overview.copy' | translate }}</p>
+        <div class="story-points" [attr.aria-label]="'overview.label' | translate">
+          <p><span class="story-point-icon" aria-hidden="true">✓</span> {{ 'overview.pointOtp' | translate }}</p>
+          <p><span class="story-point-icon" aria-hidden="true">⌑</span> {{ 'overview.pointSecure' | translate }}</p>
+        </div>
+        <p class="story-footnote">{{ 'overview.footnote' | translate }}</p>
+      </section>
+
+      <section class="auth-card" aria-labelledby="login-title">
+        <ol class="stepper" [attr.aria-label]="'steps.label' | translate">
+          <li [class.is-active]="step === 'phone'" [class.is-complete]="step === 'otp'">
+            <span class="step-indicator">{{ step === 'otp' ? '✓' : '1' }}</span><span>{{ 'steps.phone' | translate }}</span>
+          </li>
+          <li class="step-connector" aria-hidden="true"></li>
+          <li [class.is-active]="step === 'otp'">
+            <span class="step-indicator">2</span><span>{{ 'steps.verification' | translate }}</span>
+          </li>
+          <li class="step-caption">{{ (step === 'phone' ? 'steps.first' : 'steps.second') | translate }}</li>
+        </ol>
+
+        <div class="form-heading">
+          <span class="form-icon" aria-hidden="true">
+            <svg *ngIf="step === 'phone'" viewBox="0 0 24 24" focusable="false"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"></rect><path d="M10 18.5h4"></path></svg>
+            <svg *ngIf="step === 'otp'" viewBox="0 0 24 24" focusable="false"><path d="M12 3 5 6v5c0 4.7 3 8.3 7 10 4-1.7 7-5.3 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          </span>
+          <p class="form-kicker">{{ (step === 'phone' ? 'heading.secure' : 'heading.verify') | translate }}</p>
+          <h2 id="login-title">{{ (step === 'phone' ? 'heading.welcome' : 'heading.enterCode') | translate }}</h2>
+          <p class="intro" *ngIf="step === 'phone'">{{ 'intro.phone' | translate }}</p>
+          <p class="intro" *ngIf="step === 'otp'">{{ 'intro.otp' | translate }} <strong>{{ phoneDisplay }}</strong>.</p>
+        </div>
+
+        <form *ngIf="step === 'phone'" [formGroup]="phoneForm" (ngSubmit)="requestCode()" novalidate>
+          <label for="phone-number">{{ 'phone.label' | translate }}</label>
+          <div class="phone-input-group" [class.is-invalid]="phoneForm.controls.phoneNumber.touched && phoneForm.controls.phoneNumber.invalid">
+            <span class="country-code-wrap">
+              <span class="visually-hidden" id="country-code-label">{{ 'phone.countryCode' | translate }}</span>
+              <select id="country-code" formControlName="countryRegion" autocomplete="tel-country-code" aria-labelledby="country-code-label" [attr.aria-label]="'phone.countryCode' | translate">
+                <option *ngFor="let country of countries" [value]="country.region">{{ country.code }} · {{ ('country.' + country.region) | translate }}</option>
+              </select>
+              <span class="select-caret" aria-hidden="true">⌄</span>
+            </span>
+            <span class="input-divider" aria-hidden="true"></span>
+            <input id="phone-number" type="tel" formControlName="phoneNumber" autocomplete="tel-national" inputmode="tel" [placeholder]="'phone.placeholder' | translate" aria-describedby="phone-error" [attr.aria-invalid]="phoneForm.controls.phoneNumber.touched && phoneForm.controls.phoneNumber.invalid" />
+          </div>
+          <p class="field-error" id="phone-error" *ngIf="phoneForm.controls.phoneNumber.touched && phoneForm.controls.phoneNumber.invalid">{{ 'phone.invalid' | translate }}</p>
+          <p class="privacy-note"><span aria-hidden="true">◇</span> {{ 'phone.privacy' | translate }}</p>
+          <button class="primary-action" type="submit" [disabled]="isSubmitting">
+            <span>{{ (isSubmitting ? 'phone.requesting' : 'phone.continue') | translate }}</span><span class="action-arrow" aria-hidden="true">→</span>
+          </button>
+          <p class="form-footnote"><span aria-hidden="true">♧</span> {{ 'phone.footnote' | translate }}</p>
+        </form>
+
+        <form *ngIf="step === 'otp'" [formGroup]="otpForm" (ngSubmit)="verifyCode()" novalidate>
+          <div class="otp-label-row">
+            <label for="otp">{{ 'otp.label' | translate }}</label>
+            <button class="inline-action" type="button" (click)="backToPhone()" [disabled]="isSubmitting">{{ 'otp.edit' | translate }}</button>
+          </div>
+          <div class="otp-input-shell" [class.is-invalid]="otpForm.controls.otp.touched && otpForm.controls.otp.invalid" [class.is-focused]="otpFocused">
+            <input
+              id="otp"
+              type="text"
+              formControlName="otp"
+              autocomplete="one-time-code"
+              inputmode="numeric"
+              maxlength="6"
+              [attr.aria-label]="'otp.accessibleLabel' | translate"
+              aria-describedby="otp-help otp-timer otp-error"
+              [attr.aria-invalid]="otpForm.controls.otp.touched && otpForm.controls.otp.invalid"
+              (focus)="otpFocused = true"
+              (blur)="otpFocused = false"
+            />
+            <div class="otp-digit-row" aria-hidden="true">
+              <span class="otp-digit" *ngFor="let digit of otpDigits; let index = index" [class.is-current]="otpFocused && index === (otpForm.controls.otp.value?.length ?? 0) && index < 6">{{ digit }}</span>
+            </div>
+          </div>
+          <p class="field-error" id="otp-error" *ngIf="otpForm.controls.otp.touched && otpForm.controls.otp.invalid">{{ 'otp.invalid' | translate }}</p>
+          <p class="otp-help" id="otp-help">{{ 'otp.help' | translate }}</p>
+
+          <div class="timer-panel" [class.timer-panel--urgent]="remainingSeconds <= 30">
+            <span class="timer-icon" aria-hidden="true">◷</span>
+            <span class="timer-copy"><strong>{{ (remainingSeconds > 0 ? 'otp.expiry' : 'otp.expired') | translate }}</strong><span id="otp-timer">{{ (remainingSeconds > 0 ? 'otp.enterBeforeExpiry' : 'otp.requestNew') | translate }}</span></span>
+            <time class="timer-value" [attr.aria-label]="'otp.countdownLabel' | translate">{{ formatCountdown() }}</time>
+            <span class="visually-hidden" role="status" aria-live="polite">{{ (remainingSeconds === 0 ? 'otp.expiredAnnouncement' : '') | translate }}</span>
+          </div>
+
+          <button class="primary-action" type="submit" [disabled]="isSubmitting || remainingSeconds === 0">
+            <span>{{ (isSubmitting ? 'otp.checking' : 'otp.verifyContinue') | translate }}</span><span class="action-arrow" aria-hidden="true">→</span>
+          </button>
+          <div class="secondary-actions">
+            <button type="button" class="text-action" (click)="backToPhone()" [disabled]="isSubmitting">{{ 'otp.back' | translate }}</button>
+            <button type="button" class="text-action" (click)="requestCode()" [disabled]="isSubmitting || resendRemainingSeconds > 0">
+              {{ (resendRemainingSeconds > 0 ? 'otp.resendIn' : 'otp.resend') | translate:{time: formatResendCountdown()} }}
+            </button>
+          </div>
+        </form>
+
+        <p class="error-message" role="alert" *ngIf="errorMessage">{{ errorMessage | translate }}</p>
+      </section>
+    </div>
+    <footer class="auth-footer"><span>{{ 'footer.brand' | translate }}</span><span>{{ 'footer.copy' | translate }}</span></footer>
+  </div>
+</main>

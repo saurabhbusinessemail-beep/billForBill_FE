@@ -1,0 +1,28 @@
+<section class="business-details-card" aria-labelledby="business-details-title">
+  <div class="business-details-card__identity">
+    <span class="business-details-card__logo">
+      <img *ngIf="business.hasLogo && !business.workingAt" [src]="workspaceService.businessLogoUrl(business.id) | async" [attr.alt]="'business.logoAlt' | translate" />
+      <svg *ngIf="!business.hasLogo || business.workingAt" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h2v2H9zm4 0h2v2h-2zM9 12h2v2H9zm4 0h2v2h-2zM9 17h6"></path></svg>
+    </span>
+    <div class="business-details-card__title">
+      <p>{{ 'dashboard.businessType' | translate }} <span aria-hidden="true">·</span> {{ 'dashboard.active' | translate }}</p>
+      <h1 id="business-details-title">{{ business.legalName }}</h1>
+    </div>
+    <div class="business-details-card__actions">
+      <button class="workspace-button workspace-button--secondary business-details-card__edit" type="button" (click)="edit.emit()" [attr.aria-label]="'dashboard.editDetails' | translate" [title]="'dashboard.editDetails' | translate">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4ZM12 20h8"></path></svg>
+        <span>{{ 'dashboard.editDetails' | translate }}</span>
+      </button>
+      <button *ngIf="isCompactView" class="business-details-card__toggle" type="button" (click)="toggleDetails()" [attr.aria-expanded]="detailsExpanded" [attr.aria-controls]="'business-facts-' + business.id" [attr.aria-label]="(detailsExpanded ? 'dashboard.hideDetails' : 'dashboard.showDetails') | translate" [title]="(detailsExpanded ? 'dashboard.hideDetails' : 'dashboard.showDetails') | translate">
+        <svg [class.is-expanded]="detailsExpanded" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+      </button>
+    </div>
+  </div>
+  <dl class="business-details-card__facts" [hidden]="isCompactView && !detailsExpanded" [id]="'business-facts-' + business.id">
+    <div *ngIf="business.registrationId"><dt>{{ 'business.registrationId' | translate }}</dt><dd>{{ business.registrationId }}</dd></div>
+    <div *ngIf="business.phone"><dt>{{ 'business.phone' | translate }}</dt><dd>{{ business.phone }}</dd></div>
+    <div *ngIf="business.email"><dt>{{ 'business.email' | translate }}</dt><dd>{{ business.email }}</dd></div>
+    <div *ngIf="business.website"><dt>{{ 'business.website' | translate }}</dt><dd><a [href]="business.website" target="_blank" rel="noopener noreferrer">{{ business.website }}</a></dd></div>
+    <div class="business-details-card__address" *ngIf="business.address"><dt>{{ 'business.address' | translate }}</dt><dd>{{ business.address }}</dd></div>
+  </dl>
+</section>

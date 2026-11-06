@@ -1,0 +1,131 @@
+<div class="workspace-modal-backdrop">
+  <section class="workspace-modal business-form-dialog" role="dialog" aria-modal="true" aria-labelledby="business-form-title" aria-describedby="business-form-description">
+    <button class="workspace-modal__close" type="button" (click)="cancel.emit()" [disabled]="isSaving" [attr.aria-label]="'business.close' | translate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+    <p class="workspace-modal__eyebrow">{{ 'business.details' | translate }}</p>
+    <h2 id="business-form-title">{{ (isEditing ? 'business.editTitle' : 'business.createTitle') | translate }}</h2>
+    <p id="business-form-description" class="workspace-modal__description">{{ 'business.description' | translate }}</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="business-logo-field">
+        <span class="business-logo-preview">
+          <img *ngIf="previewUrl" [src]="previewUrl" alt="" />
+          <img *ngIf="!previewUrl && business?.hasLogo && !removeExistingLogo" [src]="workspaceService.businessLogoUrl(business!.id) | async" [attr.alt]="'business.logoAlt' | translate" />
+          <svg *ngIf="!previewUrl && (!business?.hasLogo || removeExistingLogo)" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+        </span>
+        <div class="business-logo-field__content">
+          <strong>{{ 'business.logo' | translate }}</strong>
+          <small>{{ (isProcessingLogo ? 'business.logoProcessing' : 'business.logoGuide') | translate }}</small>
+          <div class="business-logo-field__actions">
+            <label class="workspace-button workspace-button--secondary business-file-button">
+              <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="chooseLogo($event)" [disabled]="isSaving || isProcessingLogo" />
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path></svg>
+              {{ 'business.chooseLogo' | translate }}
+            </label>
+            <button class="business-logo-remove" *ngIf="previewUrl || business?.hasLogo" type="button" (click)="removeLogo()" [disabled]="isSaving">{{ 'business.removeLogo' | translate }}</button>
+          </div>
+        </div>
+      </div>
+      <p class="workspace-form-error" *ngIf="logoErrorKey" role="alert">{{ logoErrorKey | translate }}</p>
+      <div class="business-form-grid">
+        <label class="business-form-field business-form-field--wide">
+          <span>{{ 'f008.businessType' | translate }} <b aria-hidden="true">*</b></span>
+          <select formControlName="businessTypeId" required [attr.aria-invalid]="form.controls.businessTypeId.touched && form.controls.businessTypeId.invalid">
+            <option value="">{{ 'f008.chooseBusinessType' | translate }}</option>
+            <option *ngFor="let type of businessTypes" [value]="type.id">{{ type.name }}</option>
+          </select>
+          <small class="workspace-form-error" *ngIf="businessTypeUnavailable && !businessTypesError" role="status">{{ 'f008.businessTypeUnavailable' | translate }}</small>
+          <small *ngIf="canAssignBusinessType">{{ 'f009.assignBusinessType' | translate }}</small>
+          <small class="workspace-form-error" *ngIf="businessTypesError" role="alert">{{ 'f008.businessTypesLoadError' | translate }} <button type="button" class="business-type-retry" (click)="loadBusinessTypes()">{{ 'dashboard.retry' | translate }}</button></small>
+          <small class="workspace-form-error" *ngIf="form.controls.businessTypeId.touched && form.controls.businessTypeId.invalid">{{ 'f008.businessTypeRequired' | translate }}</small>
+        </label>
+        <label class="business-form-field business-form-field--wide">
+          <span>{{ 'business.legalName' | translate }} <b aria-hidden="true">*</b></span>
+          <input formControlName="legalName" autocomplete="organization" autofocus [placeholder]="'business.legalNamePlaceholder' | translate" [attr.aria-invalid]="form.controls.legalName.touched && form.controls.legalName.invalid" />
+          <small class="workspace-form-error" *ngIf="form.controls.legalName.touched && form.controls.legalName.hasError('required')">{{ 'business.nameRequired' | translate }}</small>
+        </label>
+        <label class="business-form-field">
+          <span>{{ 'business.registrationId' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <input formControlName="registrationId" autocomplete="off" [placeholder]="'business.registrationPlaceholder' | translate" />
+        </label>
+        <label class="business-form-field">
+          <span>{{ 'business.phone' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <input formControlName="phone" type="tel" autocomplete="tel" />
+        </label>
+        <label class="business-form-field">
+          <span>{{ 'business.email' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <input formControlName="email" type="email" autocomplete="email" [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid" />
+          <small class="workspace-form-error" *ngIf="form.controls.email.touched && form.controls.email.invalid">{{ 'business.invalidEmail' | translate }}</small>
+        </label>
+        <label class="business-form-field">
+          <span>{{ 'business.website' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <input formControlName="website" type="url" autocomplete="url" placeholder="https://" [attr.aria-invalid]="form.controls.website.touched && form.controls.website.invalid" />
+          <small class="workspace-form-error" *ngIf="form.controls.website.touched && form.controls.website.invalid">{{ 'business.invalidWebsite' | translate }}</small>
+        </label>
+        <label class="business-form-field business-form-field--wide">
+          <span>{{ 'business.address' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <textarea formControlName="address" autocomplete="street-address" rows="3" [placeholder]="'business.addressPlaceholder' | translate"></textarea>
+        </label>
+      </div>
+      <section class="payment-settings" *ngIf="paymentMethodManagementAllowed" aria-labelledby="payment-settings-heading">
+        <button class="payment-settings__toggle" type="button" aria-controls="payment-settings-content" [attr.aria-expanded]="paymentSettingsExpanded" (click)="paymentSettingsExpanded = !paymentSettingsExpanded">
+          <span><strong id="payment-settings-heading">{{ 'f017.paymentSettings' | translate }}</strong><small>{{ 'f017.paymentSettingsHint' | translate }}</small></span>
+          <span class="payment-settings__chevron" [class.payment-settings__chevron--expanded]="paymentSettingsExpanded" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></span>
+        </button>
+        <div id="payment-settings-content" *ngIf="paymentSettingsExpanded">
+          <p *ngIf="paymentSettingsLoading" role="status">{{ 'common.loading' | translate }}</p>
+          <div class="payment-settings__methods" *ngIf="!paymentSettingsLoading">
+            <section *ngFor="let method of paymentMethods"><h4>{{ method.label | translate }}</h4><label class="business-form-field" *ngFor="let field of method.fields"><span>{{ paymentFieldLabel(field) | translate }}</span><select [(ngModel)]="paymentFields[method.method][field]" [ngModelOptions]="{standalone:true}"><option value="disabled">{{ 'f017.detailDisabled' | translate }}</option><option value="optional">{{ 'f017.detailOptional' | translate }}</option><option value="required">{{ 'f017.detailRequired' | translate }}</option></select></label></section>
+          </div>
+          <p class="workspace-form-error" *ngIf="paymentSettingsError" role="alert">{{ 'f017.paymentSettingsError' | translate }}</p><p class="payment-settings__success" *ngIf="paymentSettingsMessage">{{ paymentSettingsMessage | translate }}</p>
+          <button class="workspace-button workspace-button--secondary" type="button" (click)="savePaymentSettings()" [disabled]="paymentSettingsSaving || paymentSettingsLoading">{{ (paymentSettingsSaving ? 'business.saving' : 'f017.savePaymentSettings') | translate }}</button>
+        </div>
+      </section>
+      <section class="payment-settings" *ngIf="paymentMethodManagementAllowed" aria-labelledby="number-settings-heading">
+        <button class="payment-settings__toggle" type="button" aria-controls="number-settings-content" [attr.aria-expanded]="numberSettingsExpanded" (click)="numberSettingsExpanded = !numberSettingsExpanded">
+          <span><strong id="number-settings-heading">{{ 'f019.numberSettings' | translate }}</strong><small>{{ 'f019.numberSettingsHint' | translate }}</small></span>
+          <span class="payment-settings__chevron" [class.payment-settings__chevron--expanded]="numberSettingsExpanded" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></span>
+        </button>
+        <div id="number-settings-content" *ngIf="numberSettingsExpanded">
+          <div class="business-form-grid"><label class="business-form-field" *ngFor="let field of numberFields"><span>{{ ('f019.' + field) | translate }}</span><input [(ngModel)]="numberConfig[field]" [ngModelOptions]="{standalone:true}" maxlength="12" pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,11}" autocomplete="off" /></label></div>
+          <p class="workspace-form-error" *ngIf="numberSettingsError" role="alert">{{ 'f019.numberSettingsError' | translate }}</p>
+          <button class="workspace-button workspace-button--secondary" type="button" (click)="saveNumberSettings()" [disabled]="numberSettingsSaving">{{ (numberSettingsSaving ? 'business.saving' : 'f019.saveNumberSettings') | translate }}</button>
+        </div>
+      </section>
+      <section class="payment-settings transport-settings" *ngIf="transportConfigAllowed" aria-labelledby="transport-settings-heading">
+        <button class="payment-settings__toggle" type="button" aria-controls="transport-settings-content" [attr.aria-expanded]="transportSettingsExpanded" (click)="transportSettingsExpanded = !transportSettingsExpanded">
+          <span><strong id="transport-settings-heading">{{ 'f020.title' | translate }}</strong><small>{{ 'f020.hint' | translate }}</small></span>
+          <span class="payment-settings__chevron" [class.payment-settings__chevron--expanded]="transportSettingsExpanded" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></span>
+        </button>
+        <div id="transport-settings-content" *ngIf="transportSettingsExpanded">
+          <p *ngIf="transportSettingsLoading" role="status">{{ 'common.loading' | translate }}</p>
+          <div class="transport-settings__types" *ngIf="!transportSettingsLoading">
+            <section class="transport-settings__type" *ngFor="let transport of transportTypes">
+              <button class="transport-settings__type-toggle" type="button" [attr.aria-controls]="'transport-' + transport.type + '-content'" [attr.aria-expanded]="transportTypeExpanded[transport.type]" (click)="toggleTransportType(transport.type)">
+                <span>{{ transportLabel(transport.type) | translate }} <small>{{ 'f020.selectedCount' | translate:{selected: transportRequiredCount(transport.type), total: transport.fields.length} }}</small></span>
+                <span class="payment-settings__chevron" [class.payment-settings__chevron--expanded]="transportTypeExpanded[transport.type]" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></span>
+              </button>
+              <div [id]="'transport-' + transport.type + '-content'" *ngIf="transportTypeExpanded[transport.type]">
+                <label class="transport-settings__field" *ngFor="let field of transport.fields">
+                  <span>{{ transportLabel(transport.type, field) | translate }}</span>
+                  <span class="transport-settings__switch-label">{{ (transportFields[transport.type]?.[field] ? 'f020.required' : 'f020.notCollected') | translate }}
+                    <input type="checkbox" role="switch" [attr.aria-label]="transportLabel(transport.type, field) | translate" [(ngModel)]="transportFields[transport.type][field]" [ngModelOptions]="{standalone:true}" />
+                  </span>
+                </label>
+              </div>
+            </section>
+          </div>
+          <p class="workspace-form-error" *ngIf="transportSettingsError" role="alert">{{ 'f020.error' | translate }} <button type="button" class="business-type-retry" (click)="loadTransportSettings()">{{ 'dashboard.retry' | translate }}</button></p>
+          <p class="payment-settings__success" *ngIf="transportSettingsSaved" role="status">{{ 'f020.saved' | translate }}</p>
+          <button class="workspace-button workspace-button--secondary" type="button" (click)="saveTransportSettings()" [disabled]="transportSettingsSaving || transportSettingsLoading || !transportSettingsLoaded">{{ (transportSettingsSaving ? 'business.saving' : 'f020.save') | translate }}</button>
+        </div>
+      </section>
+      <p class="workspace-form-error" *ngIf="errorKey" role="alert">{{ errorKey | translate }}</p>
+      <div class="workspace-modal__actions">
+        <button class="workspace-button workspace-button--text" type="button" (click)="cancel.emit()" [disabled]="isSaving">{{ 'business.cancel' | translate }}</button>
+        <button class="workspace-button workspace-button--primary" type="submit" [disabled]="isSaving || isProcessingLogo || paymentSettingsSaving || numberSettingsSaving || transportSettingsSaving || (transportConfigAllowed && !transportSettingsLoaded)">
+          <span>{{ (isProcessingLogo ? 'business.logoProcessing' : (isSaving ? 'business.saving' : (isEditing ? 'business.save' : 'business.create'))) | translate }}</span>
+        </button>
+      </div>
+    </form>
+  </section>
+</div>

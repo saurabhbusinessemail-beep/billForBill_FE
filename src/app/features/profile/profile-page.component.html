@@ -1,0 +1,52 @@
+<section class="profile-page" aria-labelledby="profile-page-title">
+  <header class="profile-heading profile-heading--flow">
+    <div class="profile-heading__avatar" aria-hidden="true">{{ (profile?.user?.name || 'U').slice(0, 2).toUpperCase() }}</div>
+    <div><span>{{ 'profile.eyebrow' | translate }}</span><h1 id="profile-page-title">{{ profile?.user?.name || ('profile.title' | translate) }}</h1><p>{{ 'profile.memberSince' | translate }} {{ profile?.user?.createdAt ? (profile!.user.createdAt | date:'mediumDate') : ('profile.unavailable' | translate) }}</p></div>
+  </header>
+  <header class="profile-heading profile-heading--floating" aria-hidden="true"><div class="profile-heading__avatar">{{ (profile?.user?.name || 'U').slice(0, 2).toUpperCase() }}</div><div><span>{{ 'profile.eyebrow' | translate }}</span><h2>{{ profile?.user?.name || ('profile.title' | translate) }}</h2></div></header>
+
+  <div class="profile-loading" *ngIf="loading" role="status">{{ 'dashboard.loading' | translate }}</div>
+  <section class="profile-error" *ngIf="!loading && errorKey" role="alert"><p>{{ errorKey | translate }}</p><button type="button" class="profile-button profile-button--secondary" (click)="load()">{{ 'dashboard.retry' | translate }}</button></section>
+
+  <ng-container *ngIf="!loading && !errorKey && profile as data">
+    <section class="profile-facts" [attr.aria-label]="'profile.details' | translate">
+      <article><span>{{ 'profile.email' | translate }}</span><strong>{{ 'profile.unavailable' | translate }}</strong></article>
+      <article><span>{{ 'profile.phone' | translate }}</span><strong>{{ data.user.phoneE164 }}</strong></article>
+      <article><span>{{ 'profile.role' | translate }}</span><strong>{{ 'profile.unavailable' | translate }}</strong></article>
+      <article><span>{{ 'profile.memberSince' | translate }}</span><strong>{{ data.user.createdAt | date:'mediumDate' }}</strong></article>
+    </section>
+
+    <div class="profile-address-heading"><div><h2>{{ 'profile.addresses' | translate }}</h2><p>{{ 'profile.addressesHint' | translate }}</p></div><button *ngIf="data.addresses.length" type="button" class="profile-button" (click)="openAdd()"><span aria-hidden="true">＋</span>{{ 'profile.addAddress' | translate }}</button></div>
+    <p class="profile-success" *ngIf="successKey" role="status">{{ successKey | translate }}</p>
+
+    <section class="profile-empty" *ngIf="!data.addresses.length" aria-live="polite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><p>{{ 'profile.noAddress' | translate }}</p><button type="button" class="profile-button" (click)="openAdd()"><span aria-hidden="true">＋</span>{{ 'profile.addAddress' | translate }}</button></section>
+
+    <section class="profile-address-list" *ngIf="data.addresses.length" [attr.aria-label]="'profile.addresses' | translate">
+      <article class="profile-address-card" *ngFor="let address of data.addresses">
+        <div class="profile-address-card__top"><div class="profile-badges"><span class="profile-badge profile-badge--label">{{ ('profile.label.' + address.label) | translate }}</span><span *ngIf="address.isDefault" class="profile-badge">{{ 'profile.default' | translate }}</span></div><div class="profile-card-actions"><button type="button" class="profile-icon-button" (click)="openEdit(address)" [attr.aria-label]="'profile.editAddressLabel' | translate:{label:(('profile.label.' + address.label) | translate)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L20 7.5 16.5 4 4 16.5Zm10.8-9.3 3.5 3.5"></path></svg></button><button type="button" class="profile-icon-button profile-icon-button--danger" (click)="confirmDelete(address)" [attr.aria-label]="'profile.deleteAddressLabel' | translate:{label:(('profile.label.' + address.label) | translate)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"></path></svg></button></div></div>
+        <p><strong>{{ address.contactName }}</strong><span> · {{ address.phone }}</span></p><p>{{ address.line1 }}</p><p *ngIf="address.line2">{{ address.line2 }}</p><p>{{ address.city }}, {{ address.state }}, {{ address.pincode }} · {{ address.country }}</p>
+      </article>
+    </section>
+  </ng-container>
+</section>
+
+<div class="profile-modal-backdrop" *ngIf="addressDialogOpen" (click)="closeDialog()"><section class="profile-modal" role="dialog" aria-modal="true" [attr.aria-labelledby]="'profile-address-dialog-title'" (click)="$event.stopPropagation()">
+  <header><div><h2 id="profile-address-dialog-title">{{ (editingAddress ? 'profile.editAddress' : 'profile.addAddress') | translate }}</h2><p>{{ 'profile.addressesHint' | translate }}</p></div><button type="button" class="profile-icon-button" (click)="closeDialog()" [attr.aria-label]="'f016.close' | translate">×</button></header>
+  <form [formGroup]="form" (ngSubmit)="saveAddress()" novalidate>
+    <fieldset class="profile-label-picker"><legend>{{ 'profile.labelTitle' | translate }}</legend><button *ngFor="let label of labels" type="button" [class.is-active]="form.controls.label.value === label" [attr.aria-pressed]="form.controls.label.value === label" (click)="chooseLabel(label)">{{ ('profile.label.' + label) | translate }}</button></fieldset>
+    <div class="profile-form-grid">
+      <label><span>{{ 'profile.contactName' | translate }}</span><input formControlName="contactName" maxlength="120" autocomplete="name"><small *ngIf="form.controls.contactName.touched && form.controls.contactName.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label><span>{{ 'profile.phone' | translate }}</span><input formControlName="phone" maxlength="30" type="tel" autocomplete="tel"><small *ngIf="form.controls.phone.touched && form.controls.phone.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label class="profile-form-grid__wide"><span>{{ 'profile.line1' | translate }}</span><input formControlName="line1" maxlength="200" autocomplete="address-line1"><small *ngIf="form.controls.line1.touched && form.controls.line1.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label class="profile-form-grid__wide"><span>{{ 'profile.line2' | translate }}</span><input formControlName="line2" maxlength="200" autocomplete="address-line2"></label>
+      <label><span>{{ 'profile.city' | translate }}</span><input formControlName="city" maxlength="100" autocomplete="address-level2"><small *ngIf="form.controls.city.touched && form.controls.city.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label><span>{{ 'profile.state' | translate }}</span><input formControlName="state" maxlength="100" autocomplete="address-level1"><small *ngIf="form.controls.state.touched && form.controls.state.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label><span>{{ 'profile.pincode' | translate }}</span><input formControlName="pincode" maxlength="20" autocomplete="postal-code"><small *ngIf="form.controls.pincode.touched && form.controls.pincode.invalid">{{ 'profile.required' | translate }}</small></label>
+      <label><span>{{ 'profile.country' | translate }}</span><input formControlName="country" maxlength="100" autocomplete="country-name"><small *ngIf="form.controls.country.touched && form.controls.country.invalid">{{ 'profile.required' | translate }}</small></label>
+    </div>
+    <p class="profile-form-error" *ngIf="formErrorKey" role="alert">{{ formErrorKey | translate }}</p>
+    <footer><button type="button" class="profile-button profile-button--secondary" [disabled]="busy" (click)="closeDialog()">{{ 'profile.cancel' | translate }}</button><button type="submit" class="profile-button" [disabled]="busy">{{ (busy ? 'profile.saving' : 'profile.saveAddress') | translate }}</button></footer>
+  </form>
+</section></div>
+
+<div class="profile-modal-backdrop" *ngIf="pendingDelete" (click)="cancelDelete()"><section class="profile-modal profile-confirm" role="alertdialog" aria-modal="true" aria-labelledby="profile-delete-title" (click)="$event.stopPropagation()"><h2 id="profile-delete-title">{{ 'profile.deleteTitle' | translate }}</h2><p>{{ 'profile.deleteMessage' | translate:{label:(('profile.label.' + pendingDelete.label) | translate)} }}</p><footer><button type="button" class="profile-button profile-button--secondary" [disabled]="busy" (click)="cancelDelete()">{{ 'profile.cancel' | translate }}</button><button type="button" class="profile-button profile-button--danger" [disabled]="busy" (click)="deleteAddress()">{{ 'profile.delete' | translate }}</button></footer></section></div>

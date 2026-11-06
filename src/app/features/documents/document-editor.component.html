@@ -1,0 +1,116 @@
+<div class="document-backdrop" role="presentation" (click)="cancelled.emit()">
+  <div *ngIf="errorKey()" class="document-editor__toast" role="alert" (click)="$event.stopPropagation()"><span>{{ errorKey() | translate }}</span><button type="button" (click)="errorKey.set('')" [attr.aria-label]="'f015.close' | translate">×</button></div>
+  <section class="document-editor" role="dialog" aria-modal="true" [attr.aria-label]="orderLabel() | translate" (click)="$event.stopPropagation()">
+    <header class="document-editor__header">
+      <div><p class="document-editor__eyebrow">{{ (document ? 'f015.editorKicker' : 'f015.newOrder') | translate }}</p><h2>{{ document ? (document.orderNumber || document.leadNumber) : (kind==='leads' ? ('f015.createLead' | translate) : ('f015.createOrder' | translate)) }}</h2><span *ngIf="document" class="document-editor__status">{{ ('f015.status.' + document.status) | translate }}</span><small *ngIf="kind==='leads' && document?.orderStatus" class="document-editor__status-detail">{{ 'f015.orderStatus' | translate }}: {{ ('f015.status.' + document?.orderStatus) | translate }}</small><small *ngIf="document?.billStatus" class="document-editor__status-detail">{{ 'f015.billStatus' | translate }}: {{ (document?.billStatus === 'confirmed' ? 'f017.issued' : ('f015.bill.status.' + document?.billStatus)) | translate }}</small><small *ngFor="let bill of document?.billSummaries" class="document-editor__status-detail">{{ bill.number || ('f017.draft' | translate) }} · {{ ('f017.' + bill.deliveryStatus) | translate }} · {{ ('f017.' + bill.paymentStatus) | translate }}</small></div>
+      <button type="button" class="document-editor__close" (click)="cancelled.emit()" [attr.aria-label]="'f015.close' | translate">×</button>
+    </header>
+    <div class="document-editor__body" *ngIf="!loadingOptions(); else loading">
+      <ng-container *ngIf="kind === 'orders' && !document">
+        <div class="document-editor__type-tabs" role="group" [attr.aria-label]="'f015.entryMode' | translate">
+          <button type="button" [class.is-active]="entryMode() === 'detailed'" (click)="setEntryMode('detailed')">{{ 'f015.enterOrder' | translate }}</button>
+          <button type="button" [class.is-active]="entryMode() === 'image_only'" (click)="setEntryMode('image_only')">{{ 'f015.uploadOrderImage' | translate }}</button>
+        </div>
+      </ng-container>
+
+      <section class="document-editor__section" *ngIf="entryMode() === 'detailed' || entryMode() === 'image_only'">
+        <div class="document-editor__contact-grid">
+          <label>{{ 'f015.phone' | translate }}<div class="document-editor__phone"><select [ngModel]="countryRegion()" (ngModelChange)="setCountryRegion($event)" [attr.aria-label]="'phone.countryCode' | translate"><option *ngFor="let country of countries" [value]="country.region">{{ ('country.' + country.region) | translate }} ({{ country.code }})</option></select><input type="tel" [ngModel]="contactPhone()" (ngModelChange)="contactPhone.set($event); contactUserId.set(null); contactName.set('')" (blur)="lookupContact()" [disabled]="isReadOnly()" [placeholder]="'phone.placeholder' | translate" required /></div><small *ngIf="contactChecking()">{{ 'f015.checkingPhone' | translate }}</small></label>
+          <label *ngIf="!contactUserId() && !isReadOnly()">{{ 'f015.contactName' | translate }}<input [ngModel]="contactName()" (ngModelChange)="contactName.set($event)" required /></label>
+          <div class="document-editor__linked-user" *ngIf="contactUserId() || isReadOnly()"><span class="document-editor__user-icon" aria-hidden="true">●</span><span><strong>{{ contactName() || '—' }}</strong><small>{{ (orderType==='purchase' ? 'f015.supplier' : 'f015.customer') | translate }} · {{ contactPhone() || '—' }}</small></span><button *ngIf="!isReadOnly()" type="button" (click)="changeContact()">{{ 'f015.changeUser' | translate }}</button></div>
+          <label>{{ 'f015.documentDate' | translate }}<input type="date" [ngModel]="documentDate()" (ngModelChange)="documentDate.set($event)" [disabled]="isReadOnly()" /></label>
+          <button type="button" class="document-editor__address-toggle" (click)="addressExpanded.set(!addressExpanded())" [attr.aria-expanded]="addressExpanded()"><span aria-hidden="true">⌖</span>{{ addressExpanded() ? ('f015.address' | translate) : ('f015.addAddress' | translate) }}</button>
+          <label class="document-editor__address" *ngIf="addressExpanded()"><span class="visually-hidden">{{ 'f015.address' | translate }}</span><textarea rows="2" [ngModel]="contactAddress()" (ngModelChange)="contactAddress.set($event)" [disabled]="isReadOnly()"></textarea></label>
+        </div>
+      </section>
+
+      <ng-container *ngIf="entryMode() === 'detailed'">
+        <section class="document-editor__section">
+          <h3>{{ 'f015.items' | translate }}</h3>
+          <div class="document-editor__line-head"><span>{{ 'f015.product' | translate }}</span><span>{{ (orderType==='purchase' ? 'f015.purchasePrice' : 'f015.salePrice') | translate }}</span><span>{{ 'f015.quantity' | translate }}</span><span>{{ 'f015.unit' | translate }}</span><span>{{ 'f015.grandTotal' | translate }}</span><span></span></div>
+          <div class="document-editor__lines" *ngIf="lines().length; else noLines">
+            <article class="document-editor__line" *ngFor="let line of lines(); let i=index; trackBy: trackLine">
+              <label class="document-editor__line-product"><select [ngModel]="line.productId" (ngModelChange)="updateProduct(i,$event)" [disabled]="isReadOnly()"><option value="">{{ 'f015.chooseProduct' | translate }}</option><option *ngIf="line.productId && !hasProduct(line.productId)" [value]="line.productId">{{ line.productName || line.productId }}</option><option *ngFor="let product of options().products" [value]="product.id">{{ product.name }}</option></select><span class="document-editor__line-details"><small>{{ line.productCode }}<span *ngIf="line.productCode && line.productDescription"> · </span>{{ line.productDescription }}</small><button *ngIf="canDiscount && !isReadOnly() && line.productId && !line.discount" type="button" class="document-editor__text-action" (click)="toggleLineOffer(i)">％ {{ 'f015.addDiscount' | translate }}</button></span></label>
+              <input class="document-editor__line-input" inputmode="decimal" [attr.aria-label]="(orderType==='purchase' ? 'f015.purchasePrice' : 'f015.salePrice') | translate" [value]="line.unitPrice" (input)="updateLine(i,'unitPrice',$any($event.target).value)" [disabled]="isReadOnly() || !line.productId" />
+              <input class="document-editor__line-input" inputmode="decimal" [attr.aria-label]="'f015.quantity' | translate" [value]="line.quantity" (input)="updateLine(i,'quantity',$any($event.target).value)" [disabled]="isReadOnly() || !line.productId" />
+              <select class="document-editor__line-input" [attr.aria-label]="'f015.unit' | translate" [ngModel]="line.unitId" (ngModelChange)="updateLine(i,'unitId',$event)" [disabled]="isReadOnly() || !line.productId"><option value="">—</option><option *ngFor="let unit of unitsForLine(line)" [value]="unit.id">{{ unit.name }}</option></select>
+              <strong class="document-editor__line-total">{{ lineTotal(line) | number:'1.2-2' }}</strong>
+              <button *ngIf="!isReadOnly()" type="button" class="document-editor__remove" (click)="removeLine(i)" [attr.aria-label]="'f015.removeProduct' | translate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m3.2 3v7m4-7v7" /></svg></button>
+              <div class="document-editor__offer" *ngIf="line.discount"><strong>{{ 'f015.offerOnProduct' | translate:{product:line.productName || ''} }}</strong><div class="document-editor__offer-controls"><button type="button" [class.is-active]="line.discount.type==='percentage'" [attr.aria-pressed]="line.discount.type==='percentage'" (click)="setLineDiscountType(i,'percentage')">％</button><button type="button" [class.is-active]="line.discount.type==='fixed'" [attr.aria-pressed]="line.discount.type==='fixed'" (click)="setLineDiscountType(i,'fixed')">₹</button></div><input class="document-editor__offer-value" inputmode="decimal" [attr.aria-label]="'f015.lineDiscountPercent' | translate" [value]="line.discount.value" (input)="setLineDiscount(i,$any($event.target).value)"/><button type="button" class="document-editor__offer-close" (click)="toggleLineOffer(i)" [attr.aria-label]="'f015.removeDiscount' | translate">×</button><strong class="document-editor__offer-amount">− ₹{{ lineDiscountAmount(line) | number:'1.2-2' }}</strong></div>
+            </article>
+          </div>
+          <ng-template #noLines><p class="document-editor__hint">{{ 'f015.addProductRequired' | translate }}</p></ng-template>
+          <button *ngIf="!isReadOnly()" type="button" class="document-editor__add-row" (click)="addProduct()">＋ {{ 'f015.addProduct' | translate }}</button>
+        </section>
+
+
+        <aside class="document-editor__summary">
+        <section class="document-editor__totals">
+          <div class="document-editor__items-total"><span>{{ 'f015.subtotal' | translate }}</span><strong>{{ subtotal() | number:'1.2-2' }}</strong></div>
+          <button *ngIf="canDiscount && !isReadOnly()" class="document-editor__text-action document-editor__bill-discount" type="button" (click)="toggleOrderDiscount()">％ {{ orderDiscountValue() !== '' ? ('f015.removeOrderDiscount' | translate) : ('f015.addOrderDiscount' | translate) }}</button>
+          <div class="document-editor__discount" *ngIf="orderDiscountValue() && !isReadOnly()"><select [ngModel]="orderDiscountType()" (ngModelChange)="orderDiscountType.set($event)"><option value="fixed">{{ 'f015.fixed' | translate }}</option><option value="percentage">{{ 'f015.percentage' | translate }}</option></select><input inputmode="decimal" [ngModel]="orderDiscountValue()" (ngModelChange)="orderDiscountValue.set($event)" /></div>
+          <div class="document-editor__after-discount"><small>{{ 'f015.afterDiscount' | translate }}</small><strong>{{ afterDiscount() | number:'1.2-2' }}</strong></div>
+          <div class="document-editor__tax-heading"><strong>{{ 'f015.taxes' | translate }}</strong><span class="document-editor__tax-actions" *ngIf="canCreateTax && !isReadOnly()"><button class="document-editor__text-action" type="button" (click)="taxDialog.set(true)">{{ 'f015.addTaxComponent' | translate }}</button></span></div>
+          <div class="document-editor__tax" *ngFor="let tax of visibleTaxComponents()"><span><strong>{{ tax.name }} <small *ngIf="tax.calculationType==='percentage'">{{ tax.value }}%</small></strong><small>{{ tax.description || (tax.calculationType === 'percentage' ? (tax.name + ' · ' + tax.value + '% ' + ('f015.ofTaxableValue' | translate)) : ('f015.flatChargePerBill' | translate)) }}</small></span><b>{{ (tax.calculationType === 'percentage' ? afterDiscount()*tax.value/100 : tax.value) | number:'1.2-2' }}</b><button *ngIf="canTax && !isReadOnly()" type="button" class="document-editor__tax-remove" (click)="removeTax(tax.id)" [attr.aria-label]="'f015.removeTax' | translate">×</button></div>
+          <div class="document-editor__grand"><span><strong>{{ 'f015.grandTotal' | translate }}</strong><small>{{ 'f015.includingTax' | translate:{amount:taxTotal().toFixed(2)} }}</small></span><strong>{{ grandTotal() | number:'1.2-2' }}</strong></div>
+        </section>
+
+        </aside>
+      </ng-container>
+
+      <section class="document-editor__section" *ngIf="entryMode() === 'image_only'">
+        <div class="document-editor__image-layout">
+          <div class="document-editor__image-left">
+            <section class="document-editor__image-upload-panel">
+              <h3>{{ 'f015.orderImages' | translate }}</h3>
+              <div class="document-editor__image-existing" *ngIf="document?.imageMetadata?.length"><figure *ngFor="let image of document?.imageMetadata"><img loading="lazy" decoding="async" crossorigin="use-credentials" referrerpolicy="no-referrer" [src]="imageUrl(image,document)" [alt]="image.filename"/><figcaption>{{ image.filename }}</figcaption></figure></div>
+              <div class="document-editor__image-drop" *ngIf="!document?.imageMetadata?.length">
+                <input #imageOrderFile id="f015-order-image-file" type="file" accept="image/jpeg,image/png,image/webp" (change)="onFiles($event)" />
+                <strong>{{ imageFiles()[0]?.name || ('f015.imageUploadPrompt' | translate) }}</strong><small>JPG, PNG or WebP</small>
+                <button type="button" [disabled]="isReadOnly()" (click)="imageOrderFile.click()">{{ 'f015.chooseImages' | translate }}</button>
+              </div>
+              <div class="document-editor__image-file" *ngFor="let file of imageFiles(); let i=index"><span>{{ file.name }} · {{ (file.size/1048576) | number:'1.1-1' }} MiB</span><button type="button" (click)="removeFile(i)" [attr.aria-label]="'f015.removeImage' | translate">×</button></div>
+            </section>
+            <div class="document-editor__image-guidance">
+              <button type="button" class="document-editor__image-delivery" role="checkbox" [attr.aria-checked]="deliveryCompleted()" [disabled]="isReadOnly()" (click)="deliveryCompleted.set(!deliveryCompleted())">
+                <span class="document-editor__image-check" [class.is-checked]="deliveryCompleted()" aria-hidden="true">{{ deliveryCompleted() ? '✓' : '' }}</span>
+                <span class="document-editor__image-delivery-icon" aria-hidden="true">{{ orderType==='purchase' ? '▣' : '↗' }}</span>
+                <span class="document-editor__image-delivery-copy"><strong>{{ (orderType==='purchase' ? 'f017.goodsReceivedFromSupplier' : 'f017.itemsDeliveredToCustomer') | translate }}</strong><small>{{ (deliveryCompleted() ? 'f015.delivered' : 'f015.inTransit') | translate }}</small></span>
+              </button>
+              <label class="document-editor__image-draft-hint"><span aria-hidden="true">ⓘ</span><span class="document-editor__image-draft-copy"><span>{{ 'f015.imageDraftHint' | translate }}</span><small><input type="checkbox" [ngModel]="imageAcknowledged()" (ngModelChange)="imageAcknowledged.set($event)" />{{ 'f015.imageStoreWarning' | translate }}</small></span></label>
+              <p class="document-editor__image-stock-note">{{ 'f015.imageStockNote' | translate }}</p>
+            </div>
+          </div>
+          <div class="document-editor__image-right">
+            <section class="document-editor__image-amount-panel">
+              <h3>{{ 'f015.imageAmounts' | translate }}</h3>
+              <label><span>{{ 'f015.taxableAmount' | translate }} ₹</span><input type="number" min="0" step="0.01" required [ngModel]="imageTaxableAmount()" (ngModelChange)="imageTaxableAmount.set($event)" [disabled]="isReadOnly()" /></label>
+              <label><span>{{ 'f015.taxAmount' | translate }} ₹</span><div class="document-editor__image-tax-entry"><input type="number" min="0" step="0.01" [ngModel]="imageTaxAmount()" (ngModelChange)="imageTaxAmount.set($event)" [disabled]="isReadOnly()" /><button type="button" [disabled]="isReadOnly()" (click)="setImageTaxPercent(5)">5%</button><button type="button" [disabled]="isReadOnly()" (click)="setImageTaxPercent(12)">12%</button><button type="button" [disabled]="isReadOnly()" (click)="setImageTaxPercent(18)">18%</button></div></label>
+              <label>{{ 'f015.taxDescription' | translate }}<input maxlength="120" [ngModel]="imageTaxDescription()" (ngModelChange)="imageTaxDescription.set($event)" [disabled]="isReadOnly()" /></label>
+              <p>{{ 'f015.imageNoStock' | translate }}</p>
+            </section>
+            <section class="document-editor__image-total">
+              <div><span>{{ 'f015.taxableAmount' | translate }}</span><strong>{{ imageCurrency(imageTaxableAmount()) }}</strong></div>
+              <div><span>{{ 'f015.taxAmount' | translate }}</span><strong>{{ imageCurrency(imageTaxAmount()) }}</strong></div>
+              <strong class="document-editor__image-grand"><small>{{ 'f015.grandTotal' | translate }}<em>{{ 'f017.includingTax' | translate }}</em></small><span>{{ imageCurrency(imageGrandTotal()) }}</span></strong>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <div *ngIf="kind==='orders' && entryMode()==='detailed' || kind==='leads'" class="document-editor__delivery"><input type="checkbox" [checked]="deliveryCompleted()" (change)="deliveryCompleted.set($any($event.target).checked)" [disabled]="isReadOnly() && !(kind==='orders' && canGenerateBill && document?.status==='confirmed') && !(kind==='leads' && canConvertToBill && document?.status==='ordered')"/><span>{{ 'f015.deliveryCompleted' | translate }}</span></div>
+    </div>
+    <ng-template #loading><div class="document-editor__loading" role="status">{{ 'f015.loading' | translate }}</div></ng-template>
+    <footer class="document-editor__footer"><strong class="document-editor__footer-total" *ngIf="entryMode()==='detailed' || entryMode()==='image_only'">{{ 'f015.grandTotal' | translate }} <span>{{ entryMode()==='image_only' ? imageCurrency(imageGrandTotal()) : (grandTotal() | number:'1.2-2') }}</span></strong><button type="button" (click)="cancelled.emit()">{{ 'f015.cancel' | translate }}</button><button *ngIf="canSave()" type="button" class="document-editor__secondary" (click)="save()" [disabled]="saving()">{{ (saving() ? 'f015.saving' : (kind==='leads' ? 'f015.saveLead' : 'f015.saveOrder')) | translate }}</button><button *ngIf="kind==='orders' && canGenerateBill && (!document || (document.status!=='cancelled' && !document.billStatus && !document.billSummaries?.length))" type="button" class="document-editor__primary" (click)="generateBill()" [disabled]="saving()">{{ 'f015.generateBill' | translate }}</button><ng-container *ngIf="kind==='leads' && (document?.status==='open' || document?.status==='ordered')"><button *ngIf="canConvert && document?.status==='open'" type="button" class="document-editor__secondary" (click)="generateOrder()" [disabled]="saving()">{{ 'f015.generateOrder' | translate }}</button><button *ngIf="canConvertToBill && !document?.billStatus && !document?.billSummaries?.length" type="button" class="document-editor__primary" (click)="generateLeadBill()" [disabled]="saving()">{{ 'f015.generateBill' | translate }}</button></ng-container><ng-container *ngIf="kind==='leads' && !document"><button *ngIf="canConvert && (!deliveryCompleted() || canConvertToBill)" type="button" class="document-editor__secondary" (click)="generateOrder()" [disabled]="saving()">{{ 'f015.generateOrder' | translate }}</button><button *ngIf="canConvertToBill" type="button" class="document-editor__primary" (click)="generateLeadBill()" [disabled]="saving()">{{ 'f015.generateBill' | translate }}</button></ng-container></footer>
+  </section>
+</div>
+
+<div class="document-editor__bill-prompt-backdrop" *ngIf="billDeliveryPrompt() as prompt" (click)="cancelBillDeliveryPrompt()">
+  <section class="document-editor__bill-prompt" role="alertdialog" aria-modal="true" [attr.aria-label]="'f015.billDeliveryPromptTitle' | translate" (click)="$event.stopPropagation()">
+    <h2>{{ 'f015.billDeliveryPromptTitle' | translate }}</h2>
+    <p>{{ 'f015.billDeliveryPrompt' | translate:{document: (prompt === 'order' ? ('f015.orderSingular' | translate) : ('f015.leadSingular' | translate))} }}</p>
+    <footer><button type="button" (click)="cancelBillDeliveryPrompt()">{{ 'f015.cancel' | translate }}</button><button type="button" class="document-editor__in-transit" (click)="resolveBillDelivery(false)">{{ 'f015.inTransit' | translate }}</button><button type="button" class="document-editor__delivered" (click)="resolveBillDelivery(true)">{{ 'f015.delivered' | translate }}</button></footer>
+  </section>
+</div>
+
+<div class="document-backdrop" *ngIf="taxDialog()" (click)="taxDialog.set(false)"><section class="document-tax-dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()"><h2>{{ 'f015.addTaxComponent' | translate }}</h2><label>{{ 'f015.taxName' | translate }}<input [ngModel]="newTaxName()" (ngModelChange)="newTaxName.set($event)" /></label><label>{{ 'f015.taxType' | translate }}<select [ngModel]="newTaxType()" (ngModelChange)="newTaxType.set($event)"><option value="percentage">{{ 'f015.percentage' | translate }}</option><option value="fixed">{{ 'f015.fixed' | translate }}</option></select></label><label>{{ 'f015.taxValue' | translate }}<input inputmode="decimal" [ngModel]="newTaxValue()" (ngModelChange)="newTaxValue.set($event)" /></label><footer><button type="button" (click)="taxDialog.set(false)">{{ 'f015.cancel' | translate }}</button><button type="button" (click)="createTax()">{{ 'f015.save' | translate }}</button></footer></section></div>

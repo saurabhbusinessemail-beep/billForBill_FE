@@ -1,0 +1,57 @@
+<div class="workspace-app">
+  <div class="workspace-layout" [attr.inert]="!isLoading && !dashboardErrorKey && (setupChoice === null || isBusinessDialogOpen) ? '' : null">
+    <app-workspace-menu
+      [myBusinesses]="workspaceService.myBusinesses()"
+      [workingAtBusinesses]="workspaceService.workingAtBusinesses()"
+      [workingAtLoading]="workspaceService.workingAtLoading()"
+      [workingAtError]="workspaceService.workingAtError()"
+      [selectedWorkspaceId]="workspaceService.activeWorkspaceId()"
+      [isOpen]="isMenuOpen"
+      (close)="isMenuOpen = false"
+      (select)="selectWorkspace($event)"
+      (addBusiness)="addBusiness()"
+      (retryWorkingAt)="retryWorkingAt()"
+    ></app-workspace-menu>
+
+    <div class="workspace-main">
+      <app-dashboard-header
+        [workspace]="activeWorkspace"
+        [isSigningOut]="isLoggingOut"
+        [errorKey]="headerErrorKey"
+        (menuToggle)="isMenuOpen = !isMenuOpen"
+        (signOut)="logout()"
+      ></app-dashboard-header>
+
+      <main class="workspace-content">
+        <div class="workspace-loading" *ngIf="isLoading" role="status" aria-live="polite">
+          <span class="workspace-loading__spinner" aria-hidden="true"></span>{{ 'dashboard.loading' | translate }}
+        </div>
+        <section class="workspace-load-error" *ngIf="!isLoading && dashboardErrorKey" role="alert">
+          <p>{{ dashboardErrorKey | translate }}</p>
+          <button class="workspace-button workspace-button--secondary" type="button" (click)="loadWorkspaces()">{{ 'dashboard.retry' | translate }}</button>
+        </section>
+
+        <ng-container *ngIf="!isLoading && !dashboardErrorKey && activeWorkspace as workspace">
+          <app-business-dashboard *ngIf="workspace.kind === 'business' && !isBusinessChildRoute" [business]="workspace" (editBusiness)="editBusiness()"></app-business-dashboard>
+          <router-outlet *ngIf="isBusinessChildRoute"></router-outlet>
+        </ng-container>
+      </main>
+    </div>
+  </div>
+
+  <app-first-time-setup-dialog
+    *ngIf="!isLoading && !dashboardErrorKey && setupChoice === null"
+    [isSaving]="isSavingSetupChoice"
+    [errorKey]="setupErrorKey"
+    (choose)="chooseSetup($event)"
+  ></app-first-time-setup-dialog>
+
+  <app-business-form-dialog
+    *ngIf="isBusinessDialogOpen"
+    [business]="editingBusiness"
+    [isSaving]="isSavingBusiness"
+    [errorKey]="businessErrorKey"
+    (saveBusiness)="saveBusiness($event)"
+    (cancel)="cancelBusinessDialog()"
+  ></app-business-form-dialog>
+</div>
