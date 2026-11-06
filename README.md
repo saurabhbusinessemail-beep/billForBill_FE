@@ -16,7 +16,7 @@ Run `ng build` to build the project. The build artifacts will be stored in the `
 
 ## Frontend environments
 
-Angular replaces `src/environments/environment.ts` with `environment.development.ts` for the development build and serve configurations. Development API requests use the current frontend host on port `3000`; production uses the frontend origin. API services read this setting through `src/app/app-config.ts`.
+Angular replaces `src/environments/environment.ts` with `environment.development.ts` for development and `environment.production.ts` for production builds. Development API requests use the current frontend host on port `3000`; production uses the frontend origin by default. Set `apiBaseUrl` in `environment.production.ts` if the deployed API has a separate origin. API services read this setting through `src/app/app-config.ts`.
 
 Use `ng serve` or `ng build --configuration=development` for development. Use `ng build --configuration=production` for production. To add another environment, create an environment file and configure its file replacement in `angular.json`.
 
