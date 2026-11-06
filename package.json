@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve --ssl --ssl-cert ../../certs/localhost.pem --ssl-key ../../certs/localhost-key.pem",
     "start:prod": "ng serve --configuration production --ssl --ssl-cert ./certs/localhost.pem --ssl-key ./certs/localhost-key.pem",
+    "build:prod": "ng build --configuration production",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
