@@ -80,6 +80,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.9 8-7 10-4.1-2-7-5.3-7-10V6l7-3Z"></path></svg>
           <span>{{ 'f006.teams' | translate }}</span>
         </a>
+        <ng-container *ngIf="plansAllowed"><span class="workspace-menu__subnav-divider" aria-hidden="true"></span><h3 class="workspace-menu__subnav-heading">{{ 'f024.section' | translate }}</h3><a [routerLink]="['/dashboard', business.id, 'plans']" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM8 7V5a4 4 0 0 1 8 0v2M8 12h8m-8 4h5"></path></svg><span>{{ 'f024.menu' | translate }}</span></a></ng-container>
       </nav>
       </ng-container>
     </section>
@@ -131,6 +132,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.7-2.9 8-7 10-4.1-2-7-5.3-7-10V6l7-3Z"></path></svg>
             <span>{{ 'f006.teams' | translate }}</span>
           </a>
+          <ng-container *ngIf="plansAllowed"><span class="workspace-menu__subnav-divider" aria-hidden="true"></span><h3 class="workspace-menu__subnav-heading">{{ 'f024.section' | translate }}</h3><a [routerLink]="['/dashboard', business.id, 'plans']" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM8 7V5a4 4 0 0 1 8 0v2M8 12h8m-8 4h5"></path></svg><span>{{ 'f024.menu' | translate }}</span></a></ng-container>
         </nav>
       </ng-container>
     </section>

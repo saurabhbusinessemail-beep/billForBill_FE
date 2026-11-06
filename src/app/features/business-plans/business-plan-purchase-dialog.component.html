@@ -1,0 +1,13 @@
+<div class="f024-backdrop" (click)="close()"><section class="f024-dialog" role="dialog" aria-modal="true" aria-labelledby="f024-buy-title" (click)="$event.stopPropagation()">
+  <header><div><p>{{ 'f024.buyPlan' | translate }}</p><h2 id="f024-buy-title">{{ 'f024.choosePlan' | translate }}</h2></div><button type="button" (click)="close()" [attr.aria-label]="'f024.close' | translate">×</button></header>
+  <p *ngIf="loading" class="f024-dialog-state">{{ 'f024.loading' | translate }}</p><p *ngIf="!loading && !plans.length" class="f024-dialog-state">{{ 'f024.noPlans' | translate }}</p>
+  <ng-container *ngIf="!loading && plans.length">
+    <label class="f024-field">{{ 'f024.selectPlan' | translate }}<select [(ngModel)]="planId" (ngModelChange)="choosePlan($event)"><option *ngFor="let plan of plans" [value]="plan.id">{{ plan.name }} · {{ plan.includedBills | number }} {{ 'f024.bills' | translate }} · {{ plan.monthlyPrice | currency:'INR' }}</option></select></label>
+    <div class="f024-offer-field"><label class="f024-field">{{ 'f024.offerCode' | translate }}<input [ngModel]="offerCode" (ngModelChange)="offerCodeChanged($event)" [placeholder]="'f024.enterOffer' | translate" [disabled]="paying" /></label><button type="button" (click)="applyOffer()" [disabled]="applying || paying || !offerCode.trim()">{{ applying ? ('f024.applying' | translate) : ('f024.apply' | translate) }}</button></div>
+    <p *ngIf="applied?.offer" class="f024-valid-offer">{{ applied?.offer?.name }} · −{{ discount | currency:'INR' }}</p>
+    <section class="f024-summary"><h3>{{ 'f024.orderSummary' | translate }}</h3><div><span>{{ selected?.name }} ({{ selected?.includedBills | number }} {{ 'f024.billsPerMonth' | translate }})</span><strong>{{ selected?.monthlyPrice | currency:'INR' }}</strong></div><div><span>{{ 'f024.offerDiscount' | translate }}<small *ngIf="applied?.offer"> · {{ applied?.offer?.name }}</small></span><strong>−{{ discount | currency:'INR' }}</strong></div><div class="f024-total"><span>{{ 'f024.toPay' | translate }}</span><strong>{{ due | currency:'INR' }}</strong></div></section>
+    <p class="f024-next-month" *ngIf="hasPaidPlan">{{ 'f024.nextMonthInfo' | translate }}</p>
+  </ng-container>
+  <p *ngIf="error" class="f024-dialog-error" role="alert">{{ error | translate }}</p>
+  <footer><button type="button" class="f024-cancel" (click)="close()" [disabled]="paying">{{ 'f024.cancel' | translate }}</button><button type="button" class="f024-pay" (click)="pay()" [disabled]="loading || !plans.length || !planId || paying || (offerCode.trim() && !applied)">{{ paying ? ('f024.processing' | translate) : ('f024.pay' | translate) }}</button></footer>
+</section></div>

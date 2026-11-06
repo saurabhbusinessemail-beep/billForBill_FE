@@ -36,6 +36,7 @@ const routes: Routes = [{ path: '', component: DashboardComponent, canActivate: 
     { path: 'leads', loadChildren: () => import('../leads/leads.module').then(m => m.LeadsModule) },
     { path: 'people', loadChildren: () => import('../people/people.module').then(m => m.PeopleModule) },
     { path: 'teams', loadChildren: () => import('../teams/teams.module').then(m => m.TeamsModule) },
+    { path: 'plans', loadChildren: () => import('../business-plans/business-plans.module').then(m => m.BusinessPlansModule) },
   ] },
 ] }];
 

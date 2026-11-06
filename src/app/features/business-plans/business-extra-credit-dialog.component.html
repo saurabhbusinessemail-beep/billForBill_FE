@@ -1,0 +1,7 @@
+<div class="f024-backdrop" (click)="close()"><section class="f024-dialog" role="dialog" aria-modal="true" aria-labelledby="f024-credit-title" (click)="$event.stopPropagation()">
+  <header><div><p>{{ 'f024.extraCredits' | translate }}</p><h2 id="f024-credit-title">{{ 'f024.buyExtraCredits' | translate }}</h2><small>{{ 'f024.creditSubtitle' | translate }}</small></div><button type="button" (click)="close()" [attr.aria-label]="'f024.close' | translate">×</button></header>
+  <p *ngIf="loading" class="f024-dialog-state">{{ 'f024.loading' | translate }}</p><p *ngIf="!loading && !packs.length" class="f024-dialog-state">{{ 'f024.noPacks' | translate }}</p>
+  <div class="f024-pack-list" *ngIf="!loading && packs.length"><label class="f024-pack" *ngFor="let pack of packs" [class.is-selected]="selectedId===pack.id"><input type="radio" name="creditPack" [checked]="selectedId===pack.id" (change)="selectPack(pack.id)" /><span><strong>{{ pack.name }}</strong><small>{{ pack.code }} · {{ pack.billCount | number }} {{ 'f024.bills' | translate }}</small></span><b>{{ pack.price | currency:'INR' }}</b></label></div>
+  <p *ngIf="error" class="f024-dialog-error" role="alert">{{ error | translate }}</p>
+  <footer><button type="button" class="f024-cancel" (click)="close()" [disabled]="paying">{{ 'f024.cancel' | translate }}</button><button type="button" class="f024-pay" (click)="pay()" [disabled]="loading || !packs.length || !selectedId || paying">{{ paying ? ('f024.processing' | translate) : ('f024.pay' | translate) }}</button></footer>
+</section></div>

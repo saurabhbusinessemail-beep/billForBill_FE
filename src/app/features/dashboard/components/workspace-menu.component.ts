@@ -36,6 +36,7 @@ export class WorkspaceMenuComponent implements OnChanges {
   billsAllowed = false;
   paymentsAllowed = false;
   transportAllowed = false;
+  plansAllowed = false;
   private authorizationRequest = 0;
   ngOnChanges(): void {
     const business = [...this.myBusinesses, ...this.workingAtBusinesses].find(item => item.id === this.selectedWorkspaceId);
@@ -44,8 +45,8 @@ export class WorkspaceMenuComponent implements OnChanges {
     this.pricingAllowed = false;
     this.ordersAllowed = false;
     this.leadsAllowed = false;
-    this.inventoryAllowed = false; this.reportsAllowed = false; this.billsAllowed = false; this.paymentsAllowed = false; this.transportAllowed = false;
-    if (business) this.businessAdmin.refreshCatalogAuthorization(business.id).subscribe({ next: result => { if (request !== this.authorizationRequest) return; const keys = new Set(result.permissionKeys); this.catalogAllowed = Boolean(result.isOwner || keys.has('business.catalog.view')); this.pricingAllowed = Boolean(result.isOwner || keys.has('business.pricing.view')); this.ordersAllowed = Boolean(result.isOwner || keys.has('business.orders.view')); this.leadsAllowed = Boolean(result.isOwner || keys.has('business.leads.view')); this.inventoryAllowed = Boolean(result.isOwner || keys.has('business.inventory.view')); this.reportsAllowed = Boolean(result.isOwner || keys.has('business.reports.view')); this.billsAllowed = Boolean(result.isOwner || keys.has('business.bills.view')); this.paymentsAllowed = Boolean(result.isOwner || keys.has('business.payments.view')); this.transportAllowed = Boolean(result.isOwner || keys.has('business.transport.manage')); }, error: () => { if (request !== this.authorizationRequest) return; this.catalogAllowed = false; this.pricingAllowed = false; this.ordersAllowed = false; this.leadsAllowed = false; this.inventoryAllowed = false; this.reportsAllowed = false; this.billsAllowed = false; this.paymentsAllowed = false; this.transportAllowed = false; } });
+    this.inventoryAllowed = false; this.reportsAllowed = false; this.billsAllowed = false; this.paymentsAllowed = false; this.transportAllowed = false; this.plansAllowed = false;
+    if (business) this.businessAdmin.refreshCatalogAuthorization(business.id).subscribe({ next: result => { if (request !== this.authorizationRequest) return; const keys = new Set(result.permissionKeys); this.catalogAllowed = Boolean(result.isOwner || keys.has('business.catalog.view')); this.pricingAllowed = Boolean(result.isOwner || keys.has('business.pricing.view')); this.ordersAllowed = Boolean(result.isOwner || keys.has('business.orders.view')); this.leadsAllowed = Boolean(result.isOwner || keys.has('business.leads.view')); this.inventoryAllowed = Boolean(result.isOwner || keys.has('business.inventory.view')); this.reportsAllowed = Boolean(result.isOwner || keys.has('business.reports.view')); this.billsAllowed = Boolean(result.isOwner || keys.has('business.bills.view')); this.paymentsAllowed = Boolean(result.isOwner || keys.has('business.payments.view')); this.transportAllowed = Boolean(result.isOwner || keys.has('business.transport.manage')); this.plansAllowed = Boolean(result.isOwner || keys.has('business.plans.view')); }, error: () => { if (request !== this.authorizationRequest) return; this.catalogAllowed = false; this.pricingAllowed = false; this.ordersAllowed = false; this.leadsAllowed = false; this.inventoryAllowed = false; this.reportsAllowed = false; this.billsAllowed = false; this.paymentsAllowed = false; this.transportAllowed = false; this.plansAllowed = false; } });
   }
   get isCompactView(): boolean { return window.innerWidth < 1024; }
 
