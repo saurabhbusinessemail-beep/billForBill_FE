@@ -4,7 +4,8 @@ import { Observable, catchError, map, shareReplay, tap, throwError } from 'rxjs'
 import { AuthService } from '../../core/auth/auth.service';
 import { PhoneEntry } from '../../shared/phone/phone.models';
 import { BusinessAuthorization, Envelope, Overview, Page, Permission, Person, Team, TeamPeople } from './people.models';
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname); const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname; const base = local ? `https://${host}:3000/businesses` : `${window.location.origin}/businesses`;
+import { apiBaseUrl } from '../../app-config';
+const base = `${apiBaseUrl()}/businesses`;
 @Injectable({ providedIn: 'root' })
 export class BusinessAdminService {
   private cache = new Map<string, { until: number; value: Observable<unknown> }>();

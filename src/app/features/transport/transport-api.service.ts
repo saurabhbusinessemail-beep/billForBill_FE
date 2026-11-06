@@ -2,7 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map } from 'rxjs';
 import { DeliveryOrder, DeliveryParty, DeliveryRecord } from './transport.models';
-const local = ['localhost','127.0.0.1','::1'].includes(window.location.hostname); const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname; const base = local ? `https://${host}:3000/businesses` : `${window.location.origin}/businesses`;
+import { apiBaseUrl } from '../../app-config';
+const base = `${apiBaseUrl()}/businesses`;
 @Injectable({providedIn:'root'}) export class TransportApiService {
   constructor(private readonly http:HttpClient){}
   list(id:string, search=''){const params=new HttpParams().set('search',search);return this.http.get<any>(`${this.url(id)}/deliveries`,{params,withCredentials:true}).pipe(map(x=>x.data));}

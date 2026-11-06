@@ -2,10 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { ApiResponse, LoggedInUser, OtpRequest, OtpRequestResult } from './auth.models';
+import { apiBaseUrl } from '../../app-config';
 
-const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const localApiHost = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const AUTH_API = isLocalHost ? `https://${localApiHost}:3000/auth` : `${window.location.origin}/auth`;
+const AUTH_API = `${apiBaseUrl()}/auth`;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {

@@ -2,10 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { CreditPackRecord, OfferRecord, PlanRecord, PlansOffersPage, PlansOffersResponse, TargetOption } from './plans-offers.models';
+import { apiBaseUrl } from '../../app-config';
 
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API = `${local ? `https://${host}:3000` : window.location.origin}/admin-setup/plans-offers`;
+const API = `${apiBaseUrl()}/admin-setup/plans-offers`;
 
 @Injectable({ providedIn: 'root' })
 export class PlansOffersApiService {

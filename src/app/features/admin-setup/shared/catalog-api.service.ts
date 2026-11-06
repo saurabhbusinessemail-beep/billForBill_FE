@@ -4,10 +4,9 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { map, Observable, shareReplay, tap } from 'rxjs';
 import { CatalogDeleteImpact, CatalogKind, CatalogRecord, CatalogResponse } from './catalog.models';
 import { BusinessAdminService } from '../../people/business-admin.service';
+import { apiBaseUrl } from '../../../app-config';
 
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API = local ? `https://${host}:3000` : window.location.origin;
+const API = apiBaseUrl();
 
 @Injectable({ providedIn: 'root' })
 export class CatalogApiService {

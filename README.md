@@ -14,6 +14,12 @@ Run `ng generate component component-name` to generate a new component. You can 
 
 Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
 
+## Frontend environments
+
+Angular replaces `src/environments/environment.ts` with `environment.development.ts` for the development build and serve configurations. Development API requests use the current frontend host on port `3000`; production uses the frontend origin. API services read this setting through `src/app/app-config.ts`.
+
+Use `ng serve` or `ng build --configuration=development` for development. Use `ng build --configuration=production` for production. To add another environment, create an environment file and configure its file replacement in `angular.json`.
+
 ## Running unit tests
 
 Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).

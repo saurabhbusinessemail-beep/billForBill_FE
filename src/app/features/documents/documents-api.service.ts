@@ -1,11 +1,10 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { apiBaseUrl } from '../../app-config';
 import { map, Observable } from 'rxjs';
 import { ApiEnvelope, BusinessDocument, DocumentKind, DocumentOptions, DocumentPage, OrderType } from './documents.models';
 
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API = local ? `https://${host}:3000/businesses` : `${window.location.origin}/businesses`;
+const API = `${apiBaseUrl()}/businesses`;
 @Injectable({ providedIn: 'root' })
 export class DocumentsApiService {
   constructor(private readonly http: HttpClient) {}

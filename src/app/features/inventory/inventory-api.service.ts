@@ -2,9 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map } from 'rxjs';
 import { InventoryBalanceReport, InventoryLedger, InventoryList, InventoryReportOptions } from './inventory.models';
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API = local ? `https://${host}:3000/businesses` : `${window.location.origin}/businesses`;
+import { apiBaseUrl } from '../../app-config';
+const API = `${apiBaseUrl()}/businesses`;
 interface Envelope<T> { success: boolean; data: T; }
 @Injectable({ providedIn: 'root' })
 export class InventoryApiService {

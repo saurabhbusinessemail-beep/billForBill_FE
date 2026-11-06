@@ -2,9 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { PricedProduct, PricingEnvelope, PricingList, WorkbookDecision, WorkbookValidation, WorkbookJob, WorkbookJobAccepted } from './pricing.models';
-const local = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const host = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API = local ? `https://${host}:3000/businesses` : `${window.location.origin}/businesses`;
+import { apiBaseUrl } from '../../app-config';
+const API = `${apiBaseUrl()}/businesses`;
 @Injectable({ providedIn: 'root' })
 export class PricingApiService {
   constructor(private readonly http: HttpClient) {}

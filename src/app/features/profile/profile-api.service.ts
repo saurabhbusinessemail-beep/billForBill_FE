@@ -2,10 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { AddressInput, UserProfile } from './profile.models';
+import { apiBaseUrl } from '../../app-config';
 
-const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const localApiHost = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const PROFILE_API = isLocalHost ? `https://${localApiHost}:3000/profile` : `${window.location.origin}/profile`;
+const PROFILE_API = `${apiBaseUrl()}/profile`;
 
 @Injectable({ providedIn: 'root' })
 export class ProfileApiService {

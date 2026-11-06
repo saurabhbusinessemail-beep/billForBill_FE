@@ -3,10 +3,9 @@ import { Injectable, signal } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { catchError, finalize, forkJoin, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
 import { ApiResponse, BusinessDetails, Workspace, WorkspaceOverview, WorkspaceSetupChoice, WorkingAtWorkspacesResponse } from './workspace.models';
+import { apiBaseUrl } from '../../app-config';
 
-const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const localApiHost = window.location.hostname === '::1' ? '[::1]' : window.location.hostname;
-const API_BASE = isLocalHost ? `https://${localApiHost}:3000` : window.location.origin;
+const API_BASE = apiBaseUrl();
 const ACTIVE_WORKSPACE_KEY = 'billforbill.activeWorkspace';
 
 @Injectable({ providedIn: 'root' })
