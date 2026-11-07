@@ -22,8 +22,8 @@
     <section class="workspace-menu__section workspace-menu__admin" *ngIf="auth.currentUser()?.isAdmin === true || auth.currentUser()?.isSuperAdmin === true" [attr.aria-label]="'f008.adminSetup' | translate">
       <h2>{{ 'f008.adminSetup' | translate }}</h2>
       <nav class="workspace-menu__subnav workspace-menu__subnav--admin" [attr.aria-label]="'f008.adminSetup' | translate">
+        <a routerLink="/dashboard/admin-setup/business-types" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><span aria-hidden="true">◈</span>{{ 'f008.businessTypes' | translate }}</a>
         <ng-container *ngIf="auth.currentUser()?.isAdmin === true">
-          <a routerLink="/dashboard/admin-setup/business-types" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><span aria-hidden="true">◈</span>{{ 'f008.businessTypes' | translate }}</a>
           <a routerLink="/dashboard/admin-setup/products" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><span aria-hidden="true">▦</span>{{ 'f008.products' | translate }}</a>
           <a routerLink="/dashboard/admin-setup/categories" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><span aria-hidden="true">▤</span>{{ 'f008.categories' | translate }}</a>
           <a routerLink="/dashboard/admin-setup/attributes" routerLinkActive="is-active" ariaCurrentWhenActive="page" (click)="close.emit()"><span aria-hidden="true">⌘</span>{{ 'f008.attributes' | translate }}</a>

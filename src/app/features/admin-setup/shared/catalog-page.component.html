@@ -27,7 +27,7 @@
   <div class="category-tree" *ngIf="kind === 'categories' && !isLoading && records.length">
     <div class="category-row" *ngFor="let node of tree()" [style.--tree-depth]="node.depth">
       <button class="tree-toggle" type="button" (click)="toggleTree(node.item.id)" [disabled]="!hasChildren(node.item.id)" [attr.aria-expanded]="hasChildren(node.item.id) ? expanded.has(node.item.id) : null" [attr.aria-label]="(expanded.has(node.item.id) ? 'f008.collapse' : 'f008.expand') | translate">{{ hasChildren(node.item.id) ? (expanded.has(node.item.id) ? '−' : '+') : '·' }}</button>
-      <span class="catalog-icon" aria-hidden="true">▦</span><span class="category-name"><strong>{{ node.item.name }}</strong><small>{{ 'f008.category' | translate }}</small></span>
+      <span class="catalog-icon" aria-hidden="true">▦</span><span class="category-name"><strong>{{ node.item.name }}</strong><small>{{ 'f008.name' | translate }}</small></span>
       <div class="catalog-actions" *ngIf="canManage"><button type="button" (click)="edit(node.item)" [attr.aria-label]="'f008.editNamed' | translate:{name:node.item.name}">{{ 'f008.edit' | translate }}</button><button type="button" (click)="askDelete(node.item)" [attr.aria-label]="'f008.deleteNamed' | translate:{name:node.item.name}">{{ 'f008.delete' | translate }}</button></div>
     </div>
   </div>
@@ -62,10 +62,62 @@
       <ng-container *ngIf="kind==='business-types'">
         <fieldset class="catalog-selector"><legend>{{ 'f008.linkProducts' | translate }}</legend><label *ngFor="let item of products"><input type="checkbox" [checked]="checked('productIds',item.id)" (change)="toggle('productIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('products')">＋ {{ 'f008.addProduct' | translate }}</button></fieldset>
         <fieldset class="catalog-selector"><legend>{{ 'f008.linkTaxes' | translate }}</legend><label *ngFor="let item of taxes"><input type="checkbox" [checked]="checked('taxComponentIds',item.id)" (change)="toggle('taxComponentIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('taxes')">＋ {{ 'f008.addTax' | translate }}</button></fieldset>
+        <section class="off-config" aria-labelledby="off-config-title">
+          <h3 id="off-config-title">{{ 'f025.mappingTitle' | translate }}</h3>
+          <p>{{ 'f025.mappingHint' | translate }}</p>
+          <label class="catalog-field"><span>{{ 'f025.countryTag' | translate }}</span><input name="offCountryTag" maxlength="80" placeholder="India" [(ngModel)]="value.offCountryTag" /></label>
+          <label class="catalog-field"><span>{{ 'f025.categoryTags' | translate }}</span><textarea name="offCategoryTags" rows="5" maxlength="2200" placeholder="Rice&#10;Biscuits" [(ngModel)]="value.offCategoryTags" (ngModelChange)="clearOffSuggestions()"></textarea></label>
+          <button type="button" class="catalog-button catalog-button--secondary off-config__suggest-button" [disabled]="offSuggestionsLoading || !hasOffSuggestionQuery" (click)="searchOffCategorySuggestions()">{{ 'f025.showSuggestions' | translate }}</button>
+          <div class="off-config__suggestions" *ngIf="offSuggestionsLoading || offSuggestions.length">
+            <small *ngIf="offSuggestionsLoading" aria-live="polite">{{ 'f025.suggestionsLoading' | translate }}</small>
+            <ng-container *ngIf="!offSuggestionsLoading && offSuggestions.length">
+              <label class="off-config__suggestion off-config__suggestion--select-all"><input type="checkbox" [checked]="allOffSuggestionsSelected" (change)="toggleAllOffSuggestions($event)" />{{ 'f025.selectAllSuggestions' | translate }}</label>
+              <label class="off-config__suggestion" *ngFor="let item of offSuggestions"><input type="checkbox" [checked]="isOffSuggestionSelected(item.tag)" (change)="toggleOffSuggestion(item.tag, $event)" />{{ item.name }}</label>
+              <div class="off-config__suggestions-footer"><button type="button" class="catalog-button catalog-button--primary" [disabled]="!selectedOffSuggestions.length" (click)="addSelectedOffSuggestions()">{{ 'f025.addSelectedSuggestions' | translate }}</button></div>
+            </ng-container>
+          </div>
+          <label class="off-config__active"><input type="checkbox" name="offIsActive" [(ngModel)]="value.offIsActive" />{{ 'f025.mappingEnabled' | translate }}</label>
+          <p class="off-config__license">{{ 'f025.licenseNotice' | translate }} <a href="https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/" target="_blank" rel="noopener noreferrer">{{ 'f025.licenseDetails' | translate }}</a></p>
+          <p *ngIf="isSuperAdmin && offMappingDirty" class="off-config__sync-meta">{{ 'f025.saveMappingFirst' | translate }}</p>
+          <p *ngIf="isSuperAdmin && !offMappingDirty && (!value.offIsActive || !offMappingComplete)" class="off-config__sync-meta">{{ !value.offIsActive ? ('f025.configDisabled' | translate) : ('f025.configRequired' | translate) }}</p>
+          <p *ngIf="editing?.openFoodFactsConfig?.lastSyncAt" class="off-config__sync-meta">{{ 'f025.lastSync' | translate }}: {{ editing?.openFoodFactsConfig?.lastSyncAt | date:'medium' }} · {{ ('f025.status.' + editing?.openFoodFactsConfig?.lastSyncStatus) | translate }}</p>
+          <div *ngIf="isSuperAdmin && editing" class="off-config__actions">
+            <div *ngIf="offSyncStarted" class="off-config__progress" aria-live="polite"><span>{{ 'f025.totalFetched' | translate }}: <strong>{{ offTotalFetched }}</strong></span><span>{{ 'f025.repetitionsLeft' | translate }}: <strong>{{ offRepetitionsLeft }}</strong></span></div>
+            <ng-container *ngIf="!offSyncing">
+              <label class="off-config__number"><span>{{ 'f025.fetchLimit' | translate }}</span><input type="number" name="offSyncLimit" min="1" step="1" inputmode="numeric" [(ngModel)]="offSyncLimit" /></label>
+              <label class="off-config__number"><span>{{ 'f025.repetitionCount' | translate }}</span><input type="number" name="offSyncRepetitions" min="1" step="1" inputmode="numeric" [(ngModel)]="offSyncRepetitions" /></label>
+              <button type="button" class="catalog-button catalog-button--secondary" [disabled]="isSaving || offMappingDirty || !value.offIsActive || !offMappingComplete || !offSyncLimitsValid" (click)="syncOpenFoodFacts(true)">{{ 'f025.previewSync' | translate }}</button>
+              <button type="button" class="catalog-button catalog-button--primary" [disabled]="isSaving || offMappingDirty || !value.offIsActive || !offMappingComplete || !offSyncLimitsValid" (click)="syncOpenFoodFacts(false)">{{ 'f025.runSync' | translate }}</button>
+            </ng-container>
+          </div>
+          <p *ngIf="offSyncErrorMessage" class="catalog-error-text" role="alert">{{ 'f025.repetitionCircuitBreak' | translate }} {{ offSyncErrorMessage }}</p>
+          <div *ngIf="offSyncResult" class="off-sync-result" aria-live="polite">
+            <strong>{{ 'f025.syncSummary' | translate }}</strong>
+            <p class="off-sync-result__subtitle">{{ (offSyncResult.dryRun ? 'f025.resultCountsPreview' : 'f025.resultCounts') | translate:{scanned:offSyncResult.summary.scanned,inserted:offSyncResult.summary.inserted,matched:offSyncResult.summary.matched,skipped:offSyncResult.summary.skipped,ambiguous:offSyncResult.summary.ambiguous,failed:offSyncResult.summary.failed} }}</p>
+            <p *ngIf="offSyncResult.dryRun" class="off-sync-result__subtitle">{{ 'f025.plannedCatalogAdditions' | translate:{units:offSyncResult.summary.newUnits,categories:offSyncResult.summary.newCategories,attributes:offSyncResult.summary.newAttributes} }}</p>
+            <div *ngIf="offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions" class="off-sync-result__details">
+              <div class="off-sync-result__tabs" role="tablist" [attr.aria-label]="'f025.additionsTabs' | translate">
+                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='products'" [class.active]="offSyncTab==='products'" (click)="offSyncTab='products'">{{ 'f025.productsTab' | translate }} ({{ offSyncProductAdditions.length }})</button>
+                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='categories'" [class.active]="offSyncTab==='categories'" (click)="offSyncTab='categories'">{{ 'f008.categories' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.categories?.length || 0 }})</button>
+                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='units'" [class.active]="offSyncTab==='units'" (click)="offSyncTab='units'">{{ 'f008.units' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.units?.length || 0 }})</button>
+                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='attributes'" [class.active]="offSyncTab==='attributes'" (click)="offSyncTab='attributes'">{{ 'f008.attributes' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.attributes?.length || 0 }})</button>
+              </div>
+              <div class="off-sync-result__table-scroll" [ngSwitch]="offSyncTab">
+                <table *ngSwitchCase="'products'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.gtin' | translate }}</th><th>{{ 'f025.statusColumn' | translate }}</th></tr></thead><tbody><tr *ngFor="let result of offSyncProductAdditions"><td><a *ngIf="result.sourceUrl" [href]="result.sourceUrl" target="_blank" rel="noopener noreferrer">{{ result.name || result.code }}</a><span *ngIf="!result.sourceUrl">{{ result.name || result.code }}</span></td><td>{{ result.code }}</td><td>{{ ('f025.result.' + result.status) | translate }}</td></tr></tbody></table>
+                <table *ngSwitchCase="'categories'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.parentCategory' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.categories"><td>{{ item.name }}</td><td>{{ item.parentName || '—' }}</td></tr></tbody></table>
+                <table *ngSwitchCase="'units'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.unitSymbol' | translate }}</th><th>{{ 'f025.unitDimension' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.units"><td>{{ item.name }}</td><td>{{ item.symbol || '—' }}</td><td>{{ item.dimension || '—' }}</td></tr></tbody></table>
+                <table *ngSwitchCase="'attributes'"><thead><tr><th>{{ 'f008.name' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.attributes"><td>{{ item.name }}</td></tr></tbody></table>
+              </div>
+            </div>
+            <small *ngIf="offSyncResult.dryRun">{{ 'f025.dryRunNotice' | translate }}</small>
+          </div>
+        </section>
       </ng-container>
 
       <ng-container *ngIf="kind==='products'">
         <label class="catalog-field" *ngIf="businessId"><span>{{ 'f016.productCode' | translate }}</span><input name="productCode" maxlength="40" [(ngModel)]="value.code" /></label>
+        <label class="catalog-field"><span>{{ 'f025.gtin' | translate }}</span><input name="gtin" inputmode="numeric" maxlength="14" [(ngModel)]="value.gtin" /></label>
+        <label class="catalog-field"><span>{{ 'f025.brand' | translate }}</span><input name="brand" maxlength="120" [(ngModel)]="value.brand" /></label>
         <label class="catalog-field"><span>{{ 'f008.productType' | translate }} *</span><select name="type" [(ngModel)]="value.type"><option value="Physical">{{ 'f008.type.physical' | translate }}</option><option value="Service">{{ 'f008.type.service' | translate }}</option><option value="Digital">{{ 'f008.type.digital' | translate }}</option><option value="Bundle">{{ 'f008.type.bundle' | translate }}</option><option value="Subscription">{{ 'f008.type.subscription' | translate }}</option><option value="Rental">{{ 'f008.type.rental' | translate }}</option><option value="Non-stock">{{ 'f008.type.non-stock' | translate }}</option><option value="Consumable">{{ 'f008.type.consumable' | translate }}</option></select></label>
         <div class="product-image-editor"><img *ngIf="imagePreview" [src]="imagePreview" [alt]="value.name" /><img *ngIf="!imagePreview && editing?.hasImage" [src]="api.productImage(editing!.imageId || editing!.id, businessId || undefined) | async" [alt]="value.name" /><div *ngIf="!businessId"><strong>{{ 'f008.productImage' | translate }} *</strong><small>{{ (isProcessingImage ? 'f008.imageProcessing' : 'f008.imageGuide') | translate }}</small><label class="catalog-button catalog-button--secondary"><input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseImage($event)" />{{ 'f008.chooseImage' | translate }}</label><span class="catalog-error-text" *ngIf="imageError">{{ imageError | translate }}</span></div></div>
         <label class="catalog-field"><span>{{ 'f008.baseUnit' | translate }} *</span><select name="baseUnitId" required [(ngModel)]="value.baseUnitId"><option value="">{{ 'f008.chooseUnit' | translate }}</option><option *ngFor="let unit of units" [value]="unit.id">{{ unit.name }} ({{ unit.symbol }})</option></select></label><button class="catalog-inline-add" type="button" (click)="openInline('units')">＋ {{ 'f008.addUnit' | translate }}</button>

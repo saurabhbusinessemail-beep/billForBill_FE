@@ -17,7 +17,7 @@ import { FormsModule } from '@angular/forms';
 const routes: Routes = [{ path: '', component: DashboardComponent, canActivate: [signedInGuard], children: [
   { path: 'personal', loadChildren: () => import('../personal/personal.module').then(m => m.PersonalModule) },
   { path: 'profile', loadChildren: () => import('../profile/profile.module').then(m => m.ProfileModule) },
-  { path: 'admin-setup/business-types', canActivate: [adminGuard], loadChildren: () => import('../admin-setup/business-types/business-types.module').then(m => m.BusinessTypesModule) },
+  { path: 'admin-setup/business-types', canActivate: [adminOrSuperAdminGuard], loadChildren: () => import('../admin-setup/business-types/business-types.module').then(m => m.BusinessTypesModule) },
   { path: 'admin-setup/plans-offers', canActivate: [adminOrSuperAdminGuard], loadChildren: () => import('../plans-offers/plans-offers.module').then(m => m.PlansOffersModule) },
   { path: 'admin-setup/products', canActivate: [adminGuard], loadChildren: () => import('../admin-setup/products/products.module').then(m => m.ProductsModule) },
   { path: 'admin-setup/categories', canActivate: [adminGuard], loadChildren: () => import('../admin-setup/categories/categories.module').then(m => m.CategoriesModule) },

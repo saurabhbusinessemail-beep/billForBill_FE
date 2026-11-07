@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { map, Observable, shareReplay, tap } from 'rxjs';
-import { CatalogDeleteImpact, CatalogKind, CatalogRecord, CatalogResponse } from './catalog.models';
+import { CatalogDeleteImpact, CatalogKind, CatalogRecord, CatalogResponse, OpenFoodFactsSyncResult } from './catalog.models';
 import { BusinessAdminService } from '../../people/business-admin.service';
 import { apiBaseUrl } from '../../../app-config';
 
@@ -63,6 +63,15 @@ export class CatalogApiService {
     const image = this.http.get(`${API}/product-images/${encodeURIComponent(id)}`, { withCredentials: true, responseType: 'blob', headers })
       .pipe(map(blob => this.sanitizer.bypassSecurityTrustUrl(URL.createObjectURL(blob))), shareReplay({ bufferSize: 1, refCount: false }));
     this.productImages.set(cacheKey, image); return image;
+  }
+  saveOpenFoodFactsConfig(id: string, data: { countryTag: string; categoryTags: string[]; isActive: boolean }): Observable<unknown> {
+    return this.http.put<CatalogResponse<unknown>>(`${API}/admin-setup/business-types/${encodeURIComponent(id)}/open-food-facts-config`, data, { withCredentials: true }).pipe(map(r => r.data), tap(() => this.adminCatalogLists.delete('business-types|')));
+  }
+  openFoodFactsTaxonomy(q: string, categories: string[]): Observable<Array<{ tag: string; name: string }>> {
+    return this.http.get<CatalogResponse<Array<{ tag: string; name: string }>>>(`${API}/admin-setup/business-types/open-food-facts-taxonomy`, { withCredentials: true, params: { tagType: 'categories', q, categories: categories.join('|') } }).pipe(map(r => r.data));
+  }
+  syncOpenFoodFacts(id: string, dryRun: boolean, maxProducts: number, pageOffset: number): Observable<OpenFoodFactsSyncResult> {
+    return this.http.post<CatalogResponse<OpenFoodFactsSyncResult>>(`${API}/admin-setup/business-types/${encodeURIComponent(id)}/open-food-facts-sync`, { dryRun, maxProducts, pageOffset }, { withCredentials: true }).pipe(map(r => r.data), tap(result => { this.adminCatalogLists.clear(); if (!result.dryRun) this.productImages.clear(); }));
   }
 
   private afterMutation(kind: CatalogKind, businessId?: string): void {
