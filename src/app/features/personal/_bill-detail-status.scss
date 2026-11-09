@@ -1,0 +1,7 @@
+.personal-status { display: inline-flex; align-items: center; gap: .25rem; padding: .2rem .48rem; border: 1px solid var(--theme-border-strong); border-radius: 1rem; background: var(--theme-page-wash); color: var(--theme-text-muted); font-size: .68rem; font-weight: 650; line-height: 1.15; white-space: nowrap; }
+.personal-status::before { width: .34rem; height: .34rem; flex: 0 0 .34rem; border-radius: 50%; background: currentColor; content: ''; }
+.personal-status.paid, .personal-status.delivered, .personal-status.received { background: var(--theme-success-soft); color: var(--theme-success); }
+.personal-status.overdue, .personal-status.cancelled { border-color: var(--theme-danger); background: var(--theme-danger-soft); color: var(--theme-danger); }
+.personal-status.partially-paid, .personal-status.in-transit { background: var(--theme-warning-soft); color: var(--theme-warning); }
+.personal-status.paid, .personal-status.delivered, .personal-status.received { border-color: var(--theme-success); }
+.personal-status.overdue, .personal-status.cancelled { border-color: var(--theme-danger); }

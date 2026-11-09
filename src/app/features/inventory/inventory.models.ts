@@ -1,7 +1,7 @@
-export interface InventoryUnit { id: string; name: string; symbol: string; factor: number; }
-export interface InventoryProductOption { id: string; name: string; code: string; baseUnitId: string; units: InventoryUnit[]; }
+export interface InventoryUnit { id: string; name: string; symbol: string; factor: string; }
+export interface InventoryProductOption { id: string; productId: string; variantKey: string; name: string; code: string; baseUnitKey: string; units: InventoryUnit[]; }
 export interface InventoryCategory { id: string; name: string; }
-export interface InventoryItem { id: string; name: string; code: string; description: string; categoryIds: string[]; categories: string[]; baseUnitId: string; baseUnitName: string; baseUnitSymbol: string; units: InventoryUnit[]; quantity: string; reorderLevel: string; status: 'in' | 'low' | 'out'; lastMovementDate: string | null; lastMovementQuantity: string; lastMovementUnit: string; }
+export interface InventoryItem { id: string; productId: string; variantKey: string; name: string; code: string; description: string; categoryIds: string[]; categories: string[]; baseUnitKey: string; baseUnitName: string; baseUnitSymbol: string; units: InventoryUnit[]; quantity: string; reorderLevel: string; status: 'in' | 'low' | 'out'; lastMovementDate: string | null; lastMovementQuantity: string; lastMovementUnit: string; }
 export interface InventoryList { items: InventoryItem[]; products: InventoryProductOption[]; categories: InventoryCategory[]; summary: { productsTracked: number; lowStock: number; outOfStock: number; movementsLast30Days: number }; authorization: { isOwner: boolean; permissionKeys: string[] }; }
 export interface InventoryMovement { id: string; productId: string; productName: string; direction: 'in' | 'out'; quantity: string; unitName: string; unitSymbol: string; stockQuantity: string; stockUnitName: string; date: string; reason: string; note: string; source: string; actorUserId: string; createdAt: string; balance: string; }
 export interface InventoryLedger { product: { id: string; name: string }; items: InventoryMovement[]; }

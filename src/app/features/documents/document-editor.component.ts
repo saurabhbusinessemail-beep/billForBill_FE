@@ -1,3 +1,4 @@
+import { convertLineUnit, scalePrice } from './unit-conversion';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, Output, computed, signal } from '@angular/core';
 import { finalize } from 'rxjs';
@@ -6,7 +7,9 @@ import { COUNTRY_CODES } from '../../shared/phone/country-codes';
 import { parsePhoneE164 } from '../../shared/phone/phone.models';
 import { DocumentsApiService } from './documents-api.service';
 import { Router } from '@angular/router';
-import { BusinessDocument, DocumentKind, DocumentLine, DocumentOptions, OrderType, ProductOption, TaxOption } from './documents.models';
+import { BusinessDocument, DocumentKind, DocumentLine, DocumentOptions, OrderType, ProductOption, ServiceMode, TaxOption } from './documents.models';
+
+const rateSeconds = { day: 86400, hour: 3600, minute: 60, second: 1 };
 
 @Component({ selector: 'app-document-editor', standalone: false, templateUrl: './document-editor.component.html', styleUrl: './document-editor.component.scss' })
 export class DocumentEditorComponent implements OnChanges {
@@ -29,7 +32,7 @@ export class DocumentEditorComponent implements OnChanges {
   readonly loadingOptions = signal(false);
   readonly saving = signal(false);
   readonly errorKey = signal('');
-  readonly options = signal<DocumentOptions>({ products: [], units: [], taxes: [] });
+  readonly options = signal<DocumentOptions>({ products: [], taxes: [] });
   readonly entryMode = signal<'detailed' | 'image_only'>('detailed');
   readonly contactName = signal('');
   readonly contactPhone = signal('');
@@ -75,18 +78,22 @@ export class DocumentEditorComponent implements OnChanges {
     return saved ? [{ id, name: saved.name, calculationType: saved.calculationType, value: Number(saved.value), description: '' }] : [];
   }));
   readonly unitsForSelected = computed(() => this.unitsFor(this.selectedProduct()));
-  readonly draftUnit = computed(() => { const product = this.selectedProduct(); const units = this.unitsFor(product); return units.find(unit => unit.id === product?.baseUnitId) || units[0] || null; });
+  readonly draftUnit = computed(() => this.unitsFor(this.selectedProduct())[0] || null);
   readonly draftTotal = computed(() => (Number(this.draftQuantity()) || 0) * (Number(this.draftPrice()) || 0));
   readonly orderLabel = computed(() => this.kind === 'leads' ? 'f015.lead' : this.orderType === 'purchase' ? 'f015.purchaseOrder' : 'f015.salesOrder');
-  readonly isReadOnly = computed(() => Boolean((this.document && this.document.status !== 'open') || (this.document ? !this.canEdit : !this.canCreate)));
-  readonly canSave = computed(() => !this.isReadOnly());
+  isReadOnly(): boolean {
+    if (!this.document) return !this.canCreate;
+    const hasBill = this.kind === 'orders' && Boolean(this.document.billSummaries?.length);
+    return !this.canEdit || this.document.status !== 'open' || hasBill;
+  }
+  canSave(): boolean { return !this.isReadOnly(); }
 
   constructor(private readonly api: DocumentsApiService, private readonly router: Router, auth: AuthService) { const code = parsePhoneE164(auth.currentUser()?.phoneE164)?.countryCallingCode || '+1'; this.contactCallingCode.set(code); this.countryRegion.set(COUNTRY_CODES.find(country => country.code === code)?.region || 'US'); }
 
   ngOnChanges(): void {
     if (!this.businessId) return;
     this.loadingOptions.set(true);
-    this.api.options(this.businessId, this.kind).pipe(finalize(() => this.loadingOptions.set(false))).subscribe({
+    this.api.options(this.businessId, this.kind, this.kind !== 'orders' || !!this.document).pipe(finalize(() => this.loadingOptions.set(false))).subscribe({
       next: options => {
         this.options.set(options);
         const doc = this.document;
@@ -106,7 +113,7 @@ export class DocumentEditorComponent implements OnChanges {
           this.selectedTaxIds.set(savedTaxIds.length || doc.taxSelectionSet ? savedTaxIds : options.taxes.map(tax => tax.id));
           this.imageAcknowledged.set(Boolean(doc.entryMode === 'image_only'));
         } else {
-          this.entryMode.set('detailed'); this.deliveryCompleted.set(this.kind === 'leads' ? false : true); this.lines.set([]); this.selectedTaxIds.set(options.taxes.map(tax => tax.id)); this.documentDate.set(this.localDate()); this.addressExpanded.set(false); this.imageFiles.set([]); this.imageAcknowledged.set(false); this.imageCurrencyCode.set('INR'); this.imageTaxableAmount.set(''); this.imageTaxAmount.set('0'); this.imageTaxDescription.set('');
+          this.entryMode.set('detailed'); this.deliveryCompleted.set(this.kind === 'leads' ? false : true); this.lines.set([]); this.selectedTaxIds.set(options.taxes.map(tax => tax.id)); this.documentDate.set(this.localDate()); this.addressExpanded.set(false); this.imageFiles.set([]); this.imageAcknowledged.set(false); this.imageCurrencyCode.set(options.currencyCode || 'INR'); this.imageTaxableAmount.set(''); this.imageTaxAmount.set('0'); this.imageTaxDescription.set('');
         }
       },
       error: error => this.errorKey.set(this.keyFor(error)),
@@ -125,64 +132,148 @@ export class DocumentEditorComponent implements OnChanges {
     const d = new Date(); const pad = (n: number) => String(n).padStart(2, '0'); const offset = -d.getTimezoneOffset(); const sign = offset >= 0 ? '+' : '-'; const abs = Math.abs(offset);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
   }
-  unitsFor(product: ProductOption | null) {
+  unitsFor(product: ProductOption | null, variantKey?: string) {
     if (!product) return [];
-    const ids = [this.normalizeId(product.baseUnitId), ...product.additionalUnits.map(unit => this.normalizeId(unit.unitId))].filter(Boolean);
-    return [...new Set(ids)].map(id => this.options().units.find(unit => unit.id === id)).filter((unit): unit is NonNullable<typeof unit> => Boolean(unit));
+    const variation = product.variations.find(item => item.key === (variantKey || product.legacyVariantKey));
+    if (!variation?.baseUnit) return [];
+    return [variation.baseUnit, ...variation.additionalUnits].filter(unit => unit.active).map(unit => ({ ...unit, id: unit.key }));
   }
-  unitsForLine(line: DocumentLine) { return this.unitsFor(this.options().products.find(product => product.id === line.productId) || null); }
+  unitsForLine(line: DocumentLine) { const units = this.unitsFor(this.options().products.find(product => product.id === line.productId) || null, line.variantKey); return units.some(u => u.id === line.unitKey) || !line.unitKey ? units : [...units, { key: line.unitKey, id: line.unitKey, name: line.unitLabel || line.unitKey, symbol: line.unitSymbol || '', factorToBase: line.factorToBase || line.conversionFactor || '1', active: false }]; }
+
   hasProduct(productId: string): boolean { return this.options().products.some(product => product.id === productId); }
   trackLine(index: number): number { return index; }
   setCountryRegion(region: string): void { this.countryRegion.set(region); this.contactCallingCode.set(this.countries.find(country => country.region === region)?.code || '+1'); }
   private withAvailableUnit(line: DocumentLine): DocumentLine {
     const rawProductId = line.productId as unknown;
     const productId = typeof rawProductId === 'string' ? rawProductId : (rawProductId as { _id?: string; id?: string } | null)?.id || (rawProductId as { _id?: string; id?: string } | null)?._id || '';
-    const rawUnitId = line.unitId as unknown;
-    const unitId = typeof rawUnitId === 'string' ? rawUnitId : (rawUnitId as { _id?: string; id?: string } | null)?.id || (rawUnitId as { _id?: string; id?: string } | null)?._id || '';
-    const normalized = { ...line, productId, unitId };
-    const product = this.options().products.find(item => item.id === productId) || null; const units = this.unitsFor(product);
-    if (units.some(unit => unit.id === unitId)) return normalized;
-    const fallback = units.find(unit => unit.id === product?.baseUnitId) || units[0];
-    return fallback ? { ...normalized, unitId: fallback.id, unitLabel: fallback.name } : normalized;
+    return { ...line, productId, variantKey: line.variantKey || this.options().products.find(product => product.id === productId)?.legacyVariantKey, unitKey: line.unitKey || line.unitId || '' };
   }
-  private resolvePrice(product: ProductOption, quantity: number): string | null {
+
+  private resolvePrice(product: ProductOption, quantity: number, variantKey = 'default'): string | null {
     const price = product.price;
     if (!price) return null;
-    if (this.kind === 'orders' && this.orderType === 'purchase') return price.purchaseCost;
+    const purchase = this.kind === 'orders' && this.orderType === 'purchase';
+    const variantPrice = price.variantPrices.find(item => item.variantKey === variantKey);
+    if ((product.serviceMeasurement === 'none' || this.isSingleService(product.serviceMeasurement)) && variantPrice?.basis !== 'fixed') return null;
+    const rate = purchase ? variantPrice?.purchaseCost : variantPrice?.sellingPrice;
+    if (rate != null || product.serviceMeasurement || variantKey !== 'default') return rate ?? null;
+    if (purchase) return price.purchaseCost;
     const matching = price.rules.filter(rule => rule.active && (!rule.customerUserId || rule.customerUserId === this.contactUserId()) && (rule.minimumQuantity == null || quantity >= rule.minimumQuantity))
       .sort((a, b) => Number(Boolean(b.customerUserId)) - Number(Boolean(a.customerUserId)) || (b.minimumQuantity || 0) - (a.minimumQuantity || 0));
     return matching[0]?.sellingPrice || price.defaultSellingPrice;
   }
+  isSingleService(mode?: ServiceMode | null): boolean {
+    return mode === 'one_date' || mode === 'one_date_time';
+  }
+  variantsForLine(line: DocumentLine) {
+    return this.options().products.find(product => product.id === line.productId)?.variations || [];
+  }
+  variantLabel(values: Record<string, string> = {}): string {
+    return Object.entries(values).map(([key, value]) => `${key}: ${value}`).join(', ');
+  }
+  private applyLineRate(line: DocumentLine, product: ProductOption): void {
+    const price = this.resolvePrice(product, Number(line.quantity) * Number(line.factorToBase || 1), line.variantKey);
+    if (!line.manualOverride) {
+      line.unitPrice = price == null ? '' : line.serviceRange ? price : scalePrice(price, line.factorToBase || '1');
+      line.priceOrigin = price == null ? 'manual' : 'master';
+      line.sourcePrice = price;
+    }
+    const range = line.serviceRange;
+    if (!range) return;
+    const basis = price == null ? 'fixed' : product.price?.variantPrices.find(item => item.variantKey === line.variantKey)?.basis || 'fixed';
+    line.rateBasis = basis;
+    if (basis === 'fixed') return;
+    const start = Date.parse(`${range.startDate}T${range.mode === 'dates' ? '00:00' : range.startTime}Z`);
+    const end = Date.parse(`${range.endDate}T${range.mode === 'dates' ? '00:00' : range.endTime}Z`);
+    const seconds = (end - start) / 1000 + (range.mode === 'dates' ? 86400 : 0);
+    line.serviceRange = { ...range, durationSeconds: seconds > 0 ? seconds : undefined };
+    if (!line.manualQuantity) line.quantity = seconds > 0 ? (seconds / rateSeconds[basis]).toFixed(6) : '0';
+  }
+  updateServiceRange(index: number, field: 'startDate' | 'endDate' | 'startTime' | 'endTime', value: string): void {
+    this.lines.update(lines => lines.map((line, i) => {
+      if (i !== index || !line.serviceRange) return line;
+      const product = this.options().products.find(item => item.id === line.productId);
+      const next = { ...line, serviceRange: { ...line.serviceRange, [field]: value } };
+      if (product) this.applyLineRate(next, product);
+      return next;
+    }));
+  }
   addProduct(): void {
     if (this.isReadOnly()) return;
-    this.lines.update(lines => [...lines, { productId: '', productName: '', productCode: '', productDescription: '', quantity: '1', unitId: '', unitLabel: '', unitPrice: '0', priceOrigin: 'manual', manualOverride: false, sourcePrice: null }]);
+    this.lines.update(lines => [...lines, { productId: '', productName: '', productCode: '', productDescription: '', quantity: '1', unitKey: '', unitLabel: '', unitPrice: '0', priceOrigin: 'manual', manualOverride: false, sourcePrice: null }]);
   }
   updateLine(index: number, field: keyof DocumentLine, value: string): void {
     this.lines.update(lines => lines.map((line, i) => {
       if (i !== index) return line;
       const next = { ...line, [field]: value };
+      const product = this.options().products.find(item => item.id === line.productId);
       if (field === 'unitPrice') { next.priceOrigin = 'manual'; next.manualOverride = true; }
-      if (field === 'quantity' && !line.manualOverride) { const product = this.options().products.find(item => item.id === line.productId); const price = product ? this.resolvePrice(product, Number(value) || 1) : null; if (price != null) { next.unitPrice = price; next.sourcePrice = price; next.priceOrigin = 'master'; } }
-      if (field === 'unitId') next.unitLabel = this.options().units.find(unit => unit.id === value)?.name;
+      if (field === 'quantity') next.manualQuantity = true;
+      if (field === 'variantKey') {
+        next.manualOverride = false;
+        next.manualQuantity = false;
+        const variation = product?.variations.find(item => item.key === value);
+        const unit = this.unitsFor(product || null, value).find(item => item.id === variation?.baseUnit?.key);
+        Object.assign(next, { variantValues: variation?.values, unitKey: unit?.id || '', unitLabel: unit?.name || '',
+          unitSymbol: unit?.symbol || '', factorToBase: unit?.factorToBase || '1', unitConfigRevision: variation?.unitConfigRevision, quantity: '1' });
+      }
+      if (product && (field === 'quantity' || field === 'variantKey')) this.applyLineRate(next, product);
+      if (field === 'unitKey') {
+        const unit = this.unitsForLine(line).find(u => u.id === value); if (!unit || !unit.active) return line;
+        if (!line.serviceRange) {
+          try {
+            Object.assign(next, convertLineUnit(line.quantity, line.unitPrice, line.factorToBase || line.conversionFactor || '1', unit.factorToBase));
+          } catch { this.errorKey.set('f026.invalidConversion'); return line; }
+        }
+        Object.assign(next, { factorToBase: unit.factorToBase, unitLabel: unit.name, unitSymbol: unit.symbol,
+          unitConfigRevision: product?.variations.find(variant => variant.key === line.variantKey)?.unitConfigRevision });
+      }
       return next;
     }));
   }
-  updateProduct(index: number, productId: string): void {
+  selectOrderProduct(index: number, product: ProductOption): void {
+    const line = this.lines()[index];
+    if (!line || (line.productId === product.id && (!product.matchedVariantKey || line.variantKey === product.matchedVariantKey))) return;
+    this.options.update(options => ({
+      ...options,
+      products: [...options.products.filter(item => item.id !== product.id), product],
+    }));
+    this.updateProduct(index, product.id, product.matchedVariantKey);
+  }
+
+  updateProduct(index: number, productId: string, variantKey?: string): void {
     if (!productId) {
-      this.lines.update(lines => lines.map((line, i) => i === index ? { productId: '', productName: '', productCode: '', productDescription: '', quantity: '1', unitId: '', unitLabel: '', unitPrice: '0', priceOrigin: 'manual', manualOverride: false, sourcePrice: null, discount: null } : line));
+      this.lines.update(lines => lines.map((line, i) => i === index ? { productId: '', productName: '', productCode: '', productDescription: '', quantity: '1', unitKey: '', unitLabel: '', unitPrice: '0', priceOrigin: 'manual', manualOverride: false, sourcePrice: null, discount: null } : line));
       return;
     }
     const product = this.options().products.find(item => item.id === productId);
     if (!product) return;
-    const units = this.unitsFor(product); const unit = units.find(item => item.id === product.baseUnitId) || units[0];
-    const price = this.resolvePrice(product, 1) || '';
-    this.lines.update(lines => lines.map((line, i) => i === index ? { ...line, productId: product.id, productName: product.name, productCode: product.code, productDescription: product.description, quantity: '1', unitId: unit?.id || '', unitLabel: unit?.name || '', unitPrice: price, priceOrigin: price ? 'master' : 'manual', manualOverride: !price, sourcePrice: price || null } : line));
+    const variant = product.variations.find(item => item.key === variantKey) || product.variations[0];
+    const unit = this.unitsFor(product, variant?.key)[0];
+    const mode = product.serviceMeasurement;
+    const today = mode === 'times' ? new Intl.DateTimeFormat('sv-SE', { timeZone: this.options().timeZone || 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format() : '';
+    this.lines.update(lines => lines.map((line, i) => {
+      if (i !== index) return line;
+      const next: DocumentLine = { ...line, productId: product.id, variantKey: variant?.key || 'default', variantValues: variant?.values,
+        serviceRange: mode ? { mode, startDate: today, endDate: today, startTime: '', endTime: '' } : null,
+        unitConfigRevision: variant?.unitConfigRevision, productName: product.name, productCode: product.code, productDescription: product.description,
+        quantity: '1', unitKey: unit?.id || '', unitLabel: unit?.name || '', factorToBase: unit?.factorToBase || '1', unitSymbol: unit?.symbol || '',
+        unitPrice: '', priceOrigin: 'manual', manualOverride: false, manualQuantity: false, sourcePrice: null };
+      this.applyLineRate(next, product);
+      return next;
+    }));
   }
   removeLine(index: number): void { this.lines.update(lines => lines.filter((_line, i) => i !== index)); }
   toggleOrderDiscount(): void { this.orderDiscountValue.set(this.orderDiscountValue() !== '' ? '' : '0'); }
   private cents(value: number): number { return Math.round((Number.isFinite(value) ? value : 0) * 100); }
-  lineTotal(line: DocumentLine): number { const gross = this.cents((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0)); const discount = line.discount ? (line.discount.type === 'percentage' ? Math.round(gross * (Number(line.discount.value) || 0) / 100) : this.cents(Number(line.discount.value) || 0)) : 0; return Math.max(0, gross - Math.min(gross, Math.max(0, discount))) / 100; }
-  lineDiscountAmount(line: DocumentLine): number { return Math.max(0, this.cents((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0)) / 100 - this.lineTotal(line)); }
+  private lineGross(line: DocumentLine): number {
+    const basis = line.rateBasis;
+    const quantity = !line.manualQuantity && line.serviceRange?.durationSeconds && basis && basis !== 'fixed'
+      ? line.serviceRange.durationSeconds / rateSeconds[basis] : Number(line.quantity) || 0;
+    return this.cents(quantity * (Number(line.unitPrice) || 0));
+  }
+  lineTotal(line: DocumentLine): number { const gross = this.lineGross(line); const discount = line.discount ? (line.discount.type === 'percentage' ? Math.round(gross * (Number(line.discount.value) || 0) / 100) : this.cents(Number(line.discount.value) || 0)) : 0; return Math.max(0, gross - Math.min(gross, Math.max(0, discount))) / 100; }
+  lineDiscountAmount(line: DocumentLine): number { return Math.max(0, this.lineGross(line) / 100 - this.lineTotal(line)); }
   toggleLineOffer(index: number): void { this.lines.update(lines => lines.map((line, i) => i === index ? { ...line, discount: line.discount ? null : { type: 'percentage', value: '0' } } : line)); }
   setLineDiscountType(index: number, type: 'fixed' | 'percentage'): void { this.lines.update(lines => lines.map((line, i) => i === index && line.discount ? { ...line, discount: { ...line.discount, type } } : line)); }
   setLineDiscount(index: number, value: string): void { this.lines.update(lines => lines.map((line, i) => i === index && line.discount ? { ...line, discount: { ...line.discount, value } } : line)); }
@@ -201,7 +292,9 @@ export class DocumentEditorComponent implements OnChanges {
     this.lines.update(lines => lines.map(line => {
       if (line.manualOverride || line.priceOrigin === 'manual') return line;
       const product = this.options().products.find(item => item.id === line.productId); if (!product) return line;
-      const price = this.resolvePrice(product, Number(line.quantity) || 1); return price == null ? line : { ...line, unitPrice: price, sourcePrice: price, priceOrigin: 'master' };
+      const next = { ...line };
+      this.applyLineRate(next, product);
+      return next;
     }));
   }
   onFiles(event: Event): void {
@@ -286,9 +379,9 @@ export class DocumentEditorComponent implements OnChanges {
     if (this.isReadOnly() && !(action === 'bill' && this.kind === 'orders' && this.canGenerateBill && this.document && this.document.status !== 'cancelled')) return;
     if (!this.contactName().trim()) { this.errorKey.set('f015.contactRequired'); return; }
     if (!this.lines().length) { this.errorKey.set('f015.addProductRequired'); return; }
-    if (this.lines().some(line => !line.productId || !line.unitId)) { this.errorKey.set('f015.addProductRequired'); return; }
+    if (this.lines().some(line => !line.productId || !line.unitKey)) { this.errorKey.set('f015.addProductRequired'); return; }
     const amount = Number(this.orderDiscountValue()); if (this.orderDiscountValue() && (!Number.isFinite(amount) || amount < 0 || (this.orderDiscountType() === 'percentage' && amount > 100) || (this.orderDiscountType() === 'fixed' && amount > this.subtotal()))) { this.errorKey.set('f015.invalidDiscount'); return; }
-    if (this.lines().some(line => { if (!line.discount) return false; const offer = Number(line.discount.value); const gross = (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0); return !line.discount.value.trim() || !Number.isFinite(offer) || offer < 0 || (line.discount.type === 'percentage' && offer > 100) || (line.discount.type === 'fixed' && offer > gross); })) { this.errorKey.set('f015.invalidDiscount'); return; }
+    if (this.lines().some(line => { if (!line.discount) return false; const offer = Number(line.discount.value); const gross = this.lineGross(line) / 100; return !line.discount.value.trim() || !Number.isFinite(offer) || offer < 0 || (line.discount.type === 'percentage' && offer > 100) || (line.discount.type === 'fixed' && offer > gross); })) { this.errorKey.set('f015.invalidDiscount'); return; }
     this.saving.set(true); this.errorKey.set('');
     if (this.kind === 'orders' && action === 'bill' && this.document && (!this.canEdit || this.document.status !== 'open')) { this.performOrderBill(this.document); return; }
     const body = this.documentBody(); const request = this.document ? this.api.update(this.businessId, this.kind, this.document.id, body) : this.api.create(this.businessId, this.kind, body);
@@ -341,5 +434,5 @@ export class DocumentEditorComponent implements OnChanges {
   imageUrl(image: { _id?: string; id?: string }, order: BusinessDocument | null): string { const id = image._id || image.id || ''; return order && id ? this.api.imageUrl(this.businessId, order.id, id) : ''; }
   imageCurrency(value: string | number): string { return new Intl.NumberFormat(undefined, { style: 'currency', currency: this.imageCurrencyCode(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0); }
   formatDate(value: string): string { return value?.slice(0, 10) || ''; }
-  private keyFor(error: HttpErrorResponse): string { const code = error.error?.error?.code; if (code === 'INSUFFICIENT_STOCK') return 'f015.insufficientStock'; if (code === 'PERMISSION_DENIED') return 'f015.forbidden'; if (code === 'DOCUMENT_STALE') return 'f015.stale'; if (code === 'PRICE_REQUIRED') return 'f015.priceRequired'; if (code === 'INVALID_DISCOUNT' || code === 'DISCOUNT_EXCEEDS_TOTAL') return 'f015.invalidDiscount'; if (code === 'INVALID_TAX') return 'f015.invalidTax'; if (code === 'INVALID_ORDER_TRANSITION') return 'f015.actionError'; if (code === 'INVALID_PHONE') return 'phone.invalid'; if (code === 'CONTACT_NAME_REQUIRED') return 'f015.contactRequired'; if (code === 'IMAGE_ACK_REQUIRED') return 'f015.imageAckRequired'; if (code === 'ORDER_IMAGE_TOO_LARGE' || code === 'ORDER_IMAGE_LIMIT_REACHED' || code === 'ORDER_IMAGE_SET_TOO_LARGE') return 'f015.imageLimitsError'; return 'f015.saveError'; }
+  private keyFor(error: HttpErrorResponse): string { const code = error.error?.error?.code; if (code === 'INVALID_CONVERSION' || code === 'INVALID_PRODUCT_UNIT') return 'f026.invalidConversion'; if (code === 'PRODUCT_UNIT_CONFIG_STALE') return 'f026.stale'; if (code === 'PRODUCT_UNIT_MIGRATION_REQUIRED') return 'f026.repair'; if (code === 'INSUFFICIENT_STOCK') return 'f015.insufficientStock'; if (code === 'PERMISSION_DENIED') return 'f015.forbidden'; if (code === 'DOCUMENT_STALE') return 'f015.stale'; if (code === 'INVALID_SERVICE_RANGE') return 'f028.invalidServiceRange'; if (code === 'PRICE_REQUIRED') return 'f015.priceRequired'; if (code === 'INVALID_DISCOUNT' || code === 'DISCOUNT_EXCEEDS_TOTAL') return 'f015.invalidDiscount'; if (code === 'INVALID_TAX') return 'f015.invalidTax'; if (code === 'INVALID_ORDER_TRANSITION') return 'f015.actionError'; if (code === 'INVALID_PHONE') return 'phone.invalid'; if (code === 'CONTACT_NAME_REQUIRED') return 'f015.contactRequired'; if (code === 'IMAGE_ACK_REQUIRED') return 'f015.imageAckRequired'; if (code === 'ORDER_IMAGE_TOO_LARGE' || code === 'ORDER_IMAGE_LIMIT_REACHED' || code === 'ORDER_IMAGE_SET_TOO_LARGE') return 'f015.imageLimitsError'; return 'f015.saveError'; }
 }

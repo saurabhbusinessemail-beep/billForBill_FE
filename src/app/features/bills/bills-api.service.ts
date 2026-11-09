@@ -1,7 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
-import { Bill, BillEnvelope, BillsSummary, Page, Payment, PaymentRecord, PaymentsSummary, PartyBalance } from './bills.models';
+import { Bill, BillEnvelope, BillsSummary, IncomingBillSummary, Page, Payment, PaymentRecord, PaymentsSummary, PartyBalance } from './bills.models';
+import type { PersonalBill } from '../personal/personal.models';
 import { apiBaseUrl } from '../../app-config';
 const base = `${apiBaseUrl()}/businesses`;
 @Injectable({ providedIn: 'root' })
@@ -12,6 +13,18 @@ export class BillsApiService {
   paymentsSummary(id: string) { return this.http.get<BillEnvelope<PaymentsSummary>>(`${this.url(id)}/payments/summary`, { withCredentials: true }).pipe(map(x => x.data)); }
   listBills(id: string, values: Record<string, string | number>) { let params = new HttpParams(); for (const [key, value] of Object.entries(values)) params = params.set(key, String(value)); return this.http.get<BillEnvelope<Page<Bill>>>(`${this.url(id)}/bills`, { params, withCredentials: true }).pipe(map(x => x.data)); }
   getBill(id: string, billId: string) { return this.http.get<BillEnvelope<Bill>>(`${this.url(id)}/bills/${encodeURIComponent(billId)}`, { withCredentials: true }).pipe(map(x => x.data)); }
+  listIncomingBills(id: string, page: number) {
+    return this.http.get<BillEnvelope<{ items: IncomingBillSummary[]; hasNextPage: boolean }>>(`${this.url(id)}/incoming-bills`, { params: { page }, withCredentials: true }).pipe(map(x => x.data));
+  }
+  getIncomingBill(id: string, billId: string) {
+    return this.http.get<BillEnvelope<PersonalBill>>(`${this.url(id)}/incoming-bills/${encodeURIComponent(billId)}`, { withCredentials: true }).pipe(map(x => x.data));
+  }
+  incomingBillFileUrl(id: string, billId: string, fileId: string): string {
+    return `${this.url(id)}/incoming-bills/${encodeURIComponent(billId)}/files/${encodeURIComponent(fileId)}`;
+  }
+  getIncomingBillFile(id: string, billId: string, fileId: string) {
+    return this.http.get(this.incomingBillFileUrl(id, billId, fileId), { withCredentials: true, responseType: 'blob' });
+  }
   createBill(id: string, body: unknown) { return this.http.post<BillEnvelope<Bill>>(`${this.url(id)}/bills`, body, { withCredentials: true, headers: { 'Idempotency-Key': crypto.randomUUID() } }).pipe(map(x => x.data)); }
   updateDraft(id: string, billId: string, body: unknown) { return this.http.put<BillEnvelope<Bill>>(`${this.url(id)}/bills/${encodeURIComponent(billId)}`, body, { withCredentials: true }).pipe(map(x => x.data)); }
   uploadBillFile(id: string, billId: string, file: File) { const extension = file.name.split('.').pop()?.toLowerCase(); const contentType = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'application/pdf' ? file.type : extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : extension === 'png' ? 'image/png' : extension === 'pdf' ? 'application/pdf' : 'application/octet-stream'; return this.http.post<BillEnvelope<unknown>>(`${this.url(id)}/bills/${encodeURIComponent(billId)}/files?filename=${encodeURIComponent(file.name)}`, file, { withCredentials: true, headers: { 'Content-Type': contentType } }).pipe(map(x => x.data)); }

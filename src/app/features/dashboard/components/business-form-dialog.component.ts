@@ -1,10 +1,8 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { Workspace, BusinessDetails } from '../workspace.models';
+import { Workspace, BusinessDetails, BusinessTypeOption } from '../workspace.models';
 import { WorkspaceService } from '../workspace.service';
 import { prepareBusinessLogo } from '../logo-image-processor';
-import { CatalogApiService } from '../../admin-setup/shared/catalog-api.service';
-import { CatalogRecord } from '../../admin-setup/shared/catalog.models';
 import { BusinessAdminService } from '../../people/business-admin.service';
 import { BillsApiService } from '../../bills/bills-api.service';
 
@@ -23,7 +21,9 @@ export class BusinessFormDialogComponent implements OnChanges, OnInit {
   readonly form = this.formBuilder.nonNullable.group({
     legalName: ['', [Validators.required, Validators.maxLength(200)]],
     businessTypeId: ['', Validators.required],
+    currencyCode: ['INR', Validators.required],
     registrationId: ['', Validators.maxLength(100)],
+    gstin: ['', Validators.pattern(/^(?:\s*|\s*[A-Za-z0-9]{15}\s*)$/)],
     phone: ['', Validators.maxLength(40)],
     email: ['', [Validators.email, Validators.maxLength(254)]],
     website: ['', [Validators.maxLength(2048), this.websiteValidator]],
@@ -34,7 +34,7 @@ export class BusinessFormDialogComponent implements OnChanges, OnInit {
   isProcessingLogo = false;
   removeExistingLogo = false;
   previewUrl = '';
-  businessTypes: CatalogRecord[] = [];
+  businessTypes: BusinessTypeOption[] = [];
   businessTypesError = false;
   businessTypesLoaded = false;
   creationRequestKey = globalThis.crypto.randomUUID();
@@ -80,12 +80,12 @@ export class BusinessFormDialogComponent implements OnChanges, OnInit {
     { method: 'bank_transfer', label: 'f017.method_bank_transfer', fields: ['reference', 'bankName'] },
   ];
 
-  constructor(private readonly formBuilder: FormBuilder, readonly workspaceService: WorkspaceService, private readonly catalogApi: CatalogApiService, private readonly businessAdmin: BusinessAdminService, private readonly billsApi: BillsApiService) {}
+  constructor(private readonly formBuilder: FormBuilder, readonly workspaceService: WorkspaceService, private readonly businessAdmin: BusinessAdminService, private readonly billsApi: BillsApiService) {}
 
   ngOnInit(): void {
     this.loadBusinessTypes();
   }
-  loadBusinessTypes(): void { this.businessTypesError = false; this.catalogApi.list('business-types').subscribe({ next: types => { this.businessTypes = types; this.businessTypesLoaded = true; }, error: () => { this.businessTypesError = true; } }); }
+  loadBusinessTypes(): void { this.businessTypesError = false; this.workspaceService.listBusinessTypes().subscribe({ next: types => { this.businessTypes = types; this.businessTypesLoaded = true; }, error: () => { this.businessTypesError = true; } }); }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['business']) {
@@ -93,6 +93,8 @@ export class BusinessFormDialogComponent implements OnChanges, OnInit {
       if (!business) this.creationRequestKey = globalThis.crypto.randomUUID();
       this.form.reset({
         legalName: business?.legalName ?? '', businessTypeId: business?.businessTypeId ?? '', registrationId: business?.registrationId ?? '',
+        currencyCode: business?.currencyCode ?? 'INR',
+        gstin: business?.gstin ?? '',
         phone: business?.phone ?? '', email: business?.email ?? '', website: business?.website ?? '', address: business?.address ?? '',
       });
       if (business?.businessTypeId) this.form.controls.businessTypeId.disable({ emitEvent: false }); else this.form.controls.businessTypeId.enable({ emitEvent: false });

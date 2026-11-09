@@ -1,3 +1,5 @@
+import type { ServiceRange } from '../documents/documents.models';
+
 export interface PersonalBillRow {
   id: string; billNumber: string; billType: 'sale'; entryMode: 'detailed' | 'image'; status: 'issued' | 'cancelled';
   deliveryStatus: string; paymentStatus: string; billDate: string; dueDate: string; issuedAt: string | null;
@@ -13,10 +15,11 @@ export interface PersonalDashboard {
   items: PersonalBillRow[]; page: number; pageSize: number; total: number; hasNextPage: boolean;
 }
 export interface PersonalBill extends PersonalBillRow {
+  gstin?: string;
   deliveredAtIssue: boolean; deliveryStartedAt: string | null; deliveredAt: string | null; cancelledAt: string | null;
   deliveryTimeline: Array<{ label: string; address: string; at: string | null }> | null;
   currencyScale: number; subtotal: string; afterDiscount: string | null; discountTotal: string; taxTotal: string;
-  lines: Array<{ productName: string; productDescription: string; description: string; quantity: string | number; unitLabel: string; unitPrice: string; lineTotal: string }>;
+  lines: Array<{ productName: string; productDescription: string; description: string; variantValues?: Record<string, string>; serviceRange?: ServiceRange | null; quantity: string | number; unitLabel: string; unitPrice: string; lineTotal: string }>;
   discounts: Array<{ name?: string; description?: string; amount?: string; value?: string; type?: string }>;
   taxes: Array<{ name?: string; amount?: string }>;
   imageAmounts: { taxableAmount: string; taxAmount: string; taxDescription: string } | null;

@@ -144,7 +144,7 @@
 .document-editor__line-head, .document-editor__line { grid-template-columns: minmax(12rem,2.2fr) minmax(7rem,1fr) minmax(5rem,.7fr) minmax(7rem,.9fr) minmax(7rem,1fr) 1.6rem; }
 .document-editor__line { align-items: start; }
 .document-editor__line-total { align-self: start; min-height: 2.6rem; display: flex; align-items: center; justify-content: flex-end; }
-.document-editor__line-product { align-self: center; display: grid!important; gap: .35rem!important; }
+.document-editor__line-product { align-self: center; display: grid!important; gap: .35rem!important; min-width: 0; }
 .document-editor__line-details { min-width: 0; display: flex; align-items: center; gap: .6rem; }
 .document-editor__line-details small { min-width: 0; color: var(--theme-text-muted); font-size: .68rem; }
 .document-editor__line-details .document-editor__text-action { flex: 0 0 auto; font-size: .72rem; text-decoration: none; }

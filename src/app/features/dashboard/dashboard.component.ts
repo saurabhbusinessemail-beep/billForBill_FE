@@ -1,8 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { DialogService } from '../../shared/dialogs/dialog.service';
 import { BusinessDetails, Workspace, WorkspaceOverview, WorkspaceSetupChoice } from './workspace.models';
 import { WorkspaceService } from './workspace.service';
 
@@ -10,6 +11,7 @@ import { WorkspaceService } from './workspace.service';
   selector: 'app-dashboard', standalone: false, templateUrl: './dashboard.component.html', styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
+  private readonly dialogs = inject(DialogService);
   isLoading = true;
   isLoggingOut = false;
   isSavingSetupChoice = false;
@@ -23,6 +25,7 @@ export class DashboardComponent implements OnInit {
   headerErrorKey = '';
   businessErrorKey = '';
   editingBusiness: Workspace | null = null;
+  private createdBusinessInDialog = false;
 
   constructor(readonly auth: AuthService, readonly workspaceService: WorkspaceService, private readonly router: Router, private readonly route: ActivatedRoute) {}
   get isBusinessChildRoute(): boolean {
@@ -99,23 +102,29 @@ export class DashboardComponent implements OnInit {
     if (this.isFirstTimeBusinessDialog) this.workspaceService.selectWorkspace('personal');
     this.isFirstTimeBusinessDialog = false;
     this.editingBusiness = null;
+    this.createdBusinessInDialog = false;
   }
 
   saveBusiness(event: { details: BusinessDetails; logo: File | null; removeLogo: boolean; creationRequestKey: string }): void {
     if (this.isSavingBusiness) return;
     this.isSavingBusiness = true;
     this.businessErrorKey = '';
-    const request = this.editingBusiness
-      ? this.workspaceService.updateBusiness(this.editingBusiness.id, event.details)
+    const existingBusiness = this.editingBusiness;
+    const request = existingBusiness
+      ? this.workspaceService.updateBusiness(existingBusiness.id, event.details)
       : this.workspaceService.createBusiness(event.details, event.creationRequestKey);
     request.subscribe({
       next: (business) => {
+        if (!existingBusiness) this.createdBusinessInDialog = true;
         this.editingBusiness = business;
         this.saveBusinessLogoChanges(business, event);
       },
       error: (error: HttpErrorResponse) => {
         this.isSavingBusiness = false;
         this.businessErrorKey = this.businessErrorKeyFor(error);
+        if (this.businessErrorKey === 'business.gstinAlreadyInUse') {
+          void this.dialogs.alert({ titleKey: 'business.gstin', messageKey: this.businessErrorKey });
+        }
       },
     });
   }
@@ -143,11 +152,17 @@ export class DashboardComponent implements OnInit {
     this.isFirstTimeBusinessDialog = false;
     this.editingBusiness = null;
     this.businessErrorKey = '';
+    if (this.createdBusinessInDialog) {
+      this.createdBusinessInDialog = false;
+      void this.router.navigateByUrl('/dashboard');
+    }
   }
 
   private businessErrorKeyFor(error: HttpErrorResponse): string {
     const code = error.error?.error?.code;
     if (code === 'INVALID_BUSINESS_EMAIL') return 'business.invalidEmail';
+    if (code === 'INVALID_GSTIN') return 'business.invalidGstin';
+    if (code === 'GSTIN_ALREADY_IN_USE') return 'business.gstinAlreadyInUse';
     if (code === 'INVALID_BUSINESS_WEBSITE') return 'business.invalidWebsite';
     if (code === 'LOGO_TOO_LARGE' || error.status === 413) return 'business.logoTooLarge';
     if (code === 'UNSUPPORTED_LOGO_TYPE' || code === 'INVALID_LOGO_CONTENT') return 'business.logoInvalid';

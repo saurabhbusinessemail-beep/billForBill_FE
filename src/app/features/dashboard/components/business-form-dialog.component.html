@@ -44,8 +44,17 @@
           <small class="workspace-form-error" *ngIf="form.controls.legalName.touched && form.controls.legalName.hasError('required')">{{ 'business.nameRequired' | translate }}</small>
         </label>
         <label class="business-form-field">
+          <span>{{ 'f008.currency' | translate }}</span>
+          <select formControlName="currencyCode"><option value="INR">INR</option></select>
+        </label>
+        <label class="business-form-field">
           <span>{{ 'business.registrationId' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
           <input formControlName="registrationId" autocomplete="off" [placeholder]="'business.registrationPlaceholder' | translate" />
+        </label>
+        <label class="business-form-field">
+          <span>{{ 'business.gstin' | translate }} <small>{{ 'business.optional' | translate }}</small></span>
+          <input formControlName="gstin" type="text" maxlength="15" autocapitalize="characters" autocomplete="off" [attr.aria-invalid]="form.controls.gstin.touched && form.controls.gstin.invalid" />
+          <small class="workspace-form-error" *ngIf="form.controls.gstin.touched && form.controls.gstin.invalid">{{ 'business.invalidGstin' | translate }}</small>
         </label>
         <label class="business-form-field">
           <span>{{ 'business.phone' | translate }} <small>{{ 'business.optional' | translate }}</small></span>

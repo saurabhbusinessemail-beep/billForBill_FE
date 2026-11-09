@@ -5,11 +5,12 @@ import { RouterModule } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { PersonalDashboardPageComponent } from './personal-dashboard-page.component';
 import { PersonalBillPageComponent } from './personal-bill-page.component';
+import { BillDetailContentComponent } from './bill-detail-content.component';
 import { PersonalBusinessComboboxComponent } from './personal-business-combobox.component';
 
 @NgModule({
   declarations: [PersonalDashboardPageComponent, PersonalBillPageComponent, PersonalBusinessComboboxComponent],
-  imports: [CommonModule, FormsModule, SharedModule, RouterModule.forChild([
+  imports: [CommonModule, FormsModule, SharedModule, BillDetailContentComponent, RouterModule.forChild([
     { path: '', pathMatch: 'full', component: PersonalDashboardPageComponent },
     { path: 'bills/:billId', component: PersonalBillPageComponent },
   ])],

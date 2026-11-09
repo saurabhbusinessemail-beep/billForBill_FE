@@ -1,7 +1,51 @@
+import type { ServiceMode } from '../../documents/documents.models';
+
+export interface ProductUnit { key: string; name: string; symbol: string; dimension: string; factorToBase: string; conversionKind: 'standard' | 'product_specific'; active: boolean; source: 'manual' | 'open_food_facts'; sourceText?: string; }
 export type CatalogKind = 'business-types' | 'products' | 'categories' | 'attributes' | 'units' | 'taxes';
-export interface CatalogRecord { id: string; imageId?: string; name: string; code?: string; gtin?: string; brand?: string; parentId?: string | null; productIds?: string[]; taxComponentIds?: string[]; categoryIds?: string[]; attributeIds?: string[]; pendingAttributes?: Array<{ id?: string; groupId?: string; groupName?: string; name?: string; value?: string; status?: string; match?: string; description?: string }>; unitIds?: string[]; baseUnitId?: string | null; additionalUnits?: Array<{ unitId: string; conversionFactor: number }>; type?: string; description?: string; symbol?: string; dimension?: string; taxMode?: 'inherit' | 'specific'; calculationType?: 'percentage' | 'fixed'; value?: number; currency?: string; effectiveStart?: string; effectiveEnd?: string | null; productCount?: number; unitCount?: number; taxCount?: number; hasImage?: boolean; needsUnit?: boolean; openFoodFactsConfig?: { provider?: string; countryTag?: string; categoryTags?: string[]; isActive?: boolean; mappingRevision?: number; lastSyncAt?: string; lastSyncStatus?: string; lastSyncSummary?: Record<string, number> }; [key: string]: unknown; }
-export interface OpenFoodFactsResult { code: string; status: string; reason?: string; name?: string; matchType?: string | null; sourceUrl?: string; }
-export interface OpenFoodFactsCatalogAdditions { units: Array<{ name: string; symbol?: string; dimension?: string }>; categories: Array<{ name: string; parentName?: string | null }>; attributes: Array<{ name: string }>; }
-export interface OpenFoodFactsSyncResult { status: string; dryRun: boolean; queryScope: { countryTag: string; categoryTags: string[] }; summary: { scanned: number; inserted: number; matched: number; skipped: number; ambiguous: number; failed: number; newUnits: number; newCategories: number; newAttributes: number }; plannedCatalogAdditions?: OpenFoodFactsCatalogAdditions; catalogAdditions?: OpenFoodFactsCatalogAdditions; results: OpenFoodFactsResult[]; }
+export interface CatalogVariation {
+  key: string;
+  values: Record<string, string>;
+  baseUnit: ProductUnit | null;
+  additionalUnits: ProductUnit[];
+  barcode?: string;
+  gtin?: string;
+  normalizedGtin?: string;
+  mrp?: string | null;
+}
+
+export interface CatalogRecord {
+  id: string;
+  name: string;
+  title?: string;
+  brand?: string;
+  businessId?: string | null;
+  attributes?: string[];
+  variations?: CatalogVariation[];
+  type?: string;
+  serviceMeasurement?: ServiceMode | null;
+  code?: string;
+  categoryIds?: string[];
+  taxMode?: 'inherit' | 'specific';
+  taxComponentIds?: string[];
+  hasImage?: boolean;
+  imageId?: string;
+  canEditImage?: boolean;
+  unitCount?: number;
+  productCount?: number;
+  taxCount?: number;
+  productIds?: string[];
+  parentId?: string | null;
+  unitIds?: string[];
+  description?: string;
+  symbol?: string;
+  dimension?: string;
+  calculationType?: 'percentage' | 'fixed';
+  value?: number;
+  currency?: string;
+  effectiveStart?: string;
+  effectiveEnd?: string | null;
+  jurisdiction?: string;
+}
+
 export interface CatalogResponse<T> { success: boolean; data: T; }
 export interface CatalogDeleteImpact { id: string; affected: Array<{ label: string; count: number; action: string }>; businessCopyCount?: number; }

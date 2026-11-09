@@ -1,4 +1,7 @@
+import type { ServiceRange } from '../documents/documents.models';
+
 export interface Bill {
+  gstin?: string;
   id: string; version?: number; billType: 'sale' | 'purchase'; entryMode: 'detailed' | 'image'; status: 'draft' | 'issued' | 'cancelled'; deliveryStatus: string;
   billNumber: string | null; billDate: string; dueDate: string; partyUserId: string | null; partySnapshot: { name?: string; phone?: string; address?: string; type?: string }; orderNumber?: string; deliveredAtIssue?: boolean;
   orderId: string | null; leadId: string | null; grandTotal: string; currencyCode?: string; paidAmount?: string; outstanding?: string; paymentStatus?: string;
@@ -7,9 +10,18 @@ export interface Bill {
   files?: Array<{ id: string; filename: string; contentType: string; size: number; url: string }>;
   allocations?: Array<{ id: string; amount: string; reversedAt?: string | null; payment?: { id: string; paymentNumber: string; date: string; method: string } | null }>;
 }
+export interface IncomingBillSummary {
+  id: string;
+  billNumber: string;
+  billDate: string;
+  supplierName: string;
+  currencyCode: string;
+  grandTotal: string;
+  status: 'issued' | 'cancelled';
+}
 export interface Payment { id: string; paymentNumber: string; direction: 'incoming' | 'outgoing'; partySnapshot: { name?: string; phone?: string }; amount: string; allocatedAmount: string; advanceAmount: string; currencyCode: string; paymentDate: string; method: string; methodDetails?: Record<string,string>; settledBills?: string[]; status: string; }
 export interface PartyBalance { id: string; name: string; phone: string; type: string; billed: string; paid: string; outstanding: string; openBills: number; overdue: boolean; direction: 'incoming' | 'outgoing'; currencyCode: string; }
-export interface BillLineRecord { id?: string; productDescription?: string; productName?: string; description?: string; quantity?: string | number; unitLabel?: string; unitPrice?: string; lineTotal?: string; }
+export interface BillLineRecord { id?: string; productDescription?: string; productName?: string; productId?: string; productCode?: string; description?: string; quantity?: string | number; unitLabel?: string; unitPrice?: string; lineTotal?: string; serviceRange?: ServiceRange | null; variantValues?: Record<string, string>; }
 export interface PaymentRecord extends Payment {
   partyUserId?: string | null; methodDetails?: Record<string, string>; note?: string; reversalReason?: string; reversedAt?: string | null;
   allocations: Array<{ id: string; kind: string; amount: string; reversedAt?: string | null; bill: { id: string; billNumber: string | null; billDate: string; grandTotal: string; currencyCode: string } | null }>;

@@ -6,8 +6,10 @@ export interface Workspace {
   kind: WorkspaceKind;
   name?: string;
   legalName?: string;
+  currencyCode?: string;
   businessTypeId?: string | null;
   registrationId?: string;
+  gstin?: string;
   phone?: string;
   email?: string;
   website?: string;
@@ -28,10 +30,17 @@ export interface WorkingAtWorkspacesResponse {
   workspaces: Workspace[];
 }
 
+export interface BusinessTypeOption {
+  id: string;
+  name: string;
+}
+
 export interface BusinessDetails {
+  currencyCode?: string;
   legalName: string;
   businessTypeId: string;
   registrationId: string;
+  gstin?: string;
   phone: string;
   email: string;
   website: string;

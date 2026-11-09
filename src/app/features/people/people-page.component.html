@@ -13,7 +13,10 @@
     <article class="person" *ngFor="let person of people">
       <span class="avatar"><img *ngIf="avatar(person)" [src]="avatar(person)" alt=""><span *ngIf="!avatar(person)">{{ initials(person) }}</span></span>
       <span class="person-copy"><strong>{{ person.name }}</strong><small>{{ formatPhone(person.phoneE164) }}</small><small>{{ 'f006.teamCount' | translate:{count: (person.teamCount ?? 0)} }}</small></span>
-      <button *ngIf="canRemove" class="remove" type="button" (click)="remove(person)" [attr.aria-label]="'f006.removePerson' | translate"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg><span class="remove-label">{{ 'f006.remove' | translate }}</span></button>
+      <button *ngIf="canRemove" class="remove" type="button" (click)="remove(person)" [attr.aria-label]="'f006.removePerson' | translate">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+        <span class="remove-label">{{ 'f006.remove' | translate }}</span>
+      </button>
     </article>
   </div>
   <footer class="list-footer" *ngIf="!loading"><span>{{ 'f006.peopleTotal' | translate:{count: total} }}</span><div><button type="button" class="secondary" [disabled]="page===1" (click)="changePage(page-1)">{{ 'f006.previous' | translate }}</button><span>{{ 'f006.page' | translate:{page:page} }}</span><button type="button" class="secondary" [disabled]="!hasNextPage" (click)="changePage(page+1)">{{ 'f006.next' | translate }}</button></div></footer>

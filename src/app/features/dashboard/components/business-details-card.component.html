@@ -1,5 +1,5 @@
 <section class="business-details-card" aria-labelledby="business-details-title">
-  <div class="business-details-card__identity">
+  <div class="business-details-card__identity" [class.has-balances]="canManageOpeningBalance">
     <span class="business-details-card__logo">
       <img *ngIf="business.hasLogo && !business.workingAt" [src]="workspaceService.businessLogoUrl(business.id) | async" [attr.alt]="'business.logoAlt' | translate" />
       <svg *ngIf="!business.hasLogo || business.workingAt" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h2v2H9zm4 0h2v2h-2zM9 12h2v2H9zm4 0h2v2h-2zM9 17h6"></path></svg>
@@ -16,6 +16,27 @@
       <button *ngIf="isCompactView" class="business-details-card__toggle" type="button" (click)="toggleDetails()" [attr.aria-expanded]="detailsExpanded" [attr.aria-controls]="'business-facts-' + business.id" [attr.aria-label]="(detailsExpanded ? 'dashboard.hideDetails' : 'dashboard.showDetails') | translate" [title]="(detailsExpanded ? 'dashboard.hideDetails' : 'dashboard.showDetails') | translate">
         <svg [class.is-expanded]="detailsExpanded" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
       </button>
+    </div>
+    <div *ngIf="canManageOpeningBalance" class="business-details-card__balances">
+      <dl *ngIf="latestBalance as balance">
+        <div>
+          <dt>{{ 'f016.openingBalance' | translate }}</dt>
+          <dd><strong>{{ balance.openingAmount }} {{ balance.currency }}</strong>
+            <small><time [attr.datetime]="balance.openingDate">{{ balance.openingDate | date:'mediumDate':'UTC' }}</time></small>
+          </dd>
+        </div>
+        <div *ngIf="balance.closingDate && balance.closingAmount != null">
+          <dt>{{ 'f016.closingBalance' | translate }}</dt>
+          <dd><strong>{{ balance.closingAmount }} {{ balance.currency }}</strong>
+            <small><time [attr.datetime]="balance.closingDate">{{ balance.closingDate | date:'mediumDate':'UTC' }}</time></small>
+          </dd>
+        </div>
+      </dl>
+      <button *ngIf="balanceLoadError" class="workspace-button workspace-button--secondary" type="button"
+        (click)="loadOpeningBalance()">{{ 'f029.retry' | translate }}</button>
+      <button class="workspace-button workspace-button--secondary" type="button"
+        (click)="balanceDialog.open()">{{ 'f029.set' | translate }}</button>
+      <app-opening-balance-dialog #balanceDialog [businessId]="business.id" (saved)="loadOpeningBalance()"></app-opening-balance-dialog>
     </div>
   </div>
   <dl class="business-details-card__facts" [hidden]="isCompactView && !detailsExpanded" [id]="'business-facts-' + business.id">

@@ -1,0 +1,97 @@
+<section class="people-page" [class.is-floating]="floatingHeading"
+  [attr.aria-labelledby]="floatingHeading ? 'customer-vendor-floating-title' : 'customer-vendor-title'">
+  <div class="people-floating-shell" [class.is-visible]="floatingHeading" [style.top.px]="floatingTop"
+    [style.left.px]="floatingLeft" [style.width.px]="floatingWidth"
+    [attr.aria-hidden]="!floatingHeading" [attr.inert]="!floatingHeading ? '' : null">
+    <div class="people-floating-inner">
+      <div class="people-floating-title">
+        <span class="eyebrow">{{ 'f029.party' | translate }}</span>
+        <h2 id="customer-vendor-floating-title">{{ 'f029.customerVendor' | translate }}</h2>
+        <span class="people-floating-subtitle">{{ 'f029.directoryIntro' | translate }}</span>
+      </div>
+      <div class="people-floating-actions">
+        <button #searchToggle class="people-floating-search-action" type="button" (click)="toggleSearch(searchToggle)"
+          [attr.aria-label]="'f029.searchParty' | translate" [attr.aria-expanded]="floatingSearchOpen"
+          [attr.aria-controls]="floatingSearchOpen ? 'customer-vendor-floating-search' : null">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="people-floating-search-row" role="search">
+      <ng-container *ngTemplateOutlet="floatingSearchField"></ng-container>
+    </div>
+    <div *ngIf="floatingSearchOpen" id="customer-vendor-floating-search" class="people-floating-search-menu"
+      [style.top.px]="floatingSearchTop" role="search">
+      <ng-container *ngTemplateOutlet="floatingSearchField"></ng-container>
+    </div>
+  </div>
+
+  <header class="page-heading" [class.is-hidden]="floatingHeading" [attr.aria-hidden]="floatingHeading ? 'true' : null"
+    [attr.inert]="floatingHeading ? '' : null">
+    <div>
+      <p class="eyebrow">{{ 'f029.party' | translate }}</p>
+      <h1 id="customer-vendor-title">{{ 'f029.customerVendor' | translate }}</h1>
+      <p>{{ 'f029.directoryIntro' | translate }}</p>
+    </div>
+  </header>
+  <label class="search" [class.is-hidden]="floatingHeading" [attr.aria-hidden]="floatingHeading ? 'true' : null"
+    [attr.inert]="floatingHeading ? '' : null">
+    <span>{{ 'f029.searchParty' | translate }}</span>
+    <input type="search" [ngModel]="search" (ngModelChange)="searchChanged($event)" maxlength="100"
+      [placeholder]="'f029.searchPartyPlaceholder' | translate">
+  </label>
+
+  <app-opening-balance-dialog #balanceDialog [businessId]="businessId" (saved)="load()"></app-opening-balance-dialog>
+  <p *ngIf="errorKey" class="error" role="alert">
+    {{ errorKey | translate }} <button class="secondary" type="button" (click)="load()">{{ 'f029.retry' | translate }}</button>
+  </p>
+  <div *ngIf="loading" class="state" role="status">{{ 'f006.loading' | translate }}</div>
+  <div *ngIf="!loading && !errorKey && !parties.length" class="state">
+    {{ (search.trim() ? 'f029.noPartyMatches' : 'f029.noParties') | translate }}
+  </div>
+  <div *ngIf="!loading && parties.length" class="people-list">
+    <article class="person" *ngFor="let party of parties">
+      <span class="avatar" aria-hidden="true">{{ initials(party) }}</span>
+      <div class="person-copy">
+        <strong>{{ party.label || party.key }}</strong>
+        <small>{{ party.phone || '—' }}</small>
+        <small>
+          <ng-container *ngFor="let role of party.roles; let first = first">
+            <ng-container *ngIf="!first"> / </ng-container>{{ ('f029.' + role) | translate }}
+          </ng-container>
+        </small>
+        <small>
+          {{ 'f016.openingBalance' | translate }} · {{ party.period?.openingAmount ?? '0.00' }} {{ party.period?.currency ?? currency }}
+          <ng-container *ngIf="party.period as period">
+            · <time [attr.datetime]="period.openingDate">{{ period.openingDate | date:'mediumDate':'UTC' }}</time>
+          </ng-container>
+        </small>
+        <ng-container *ngIf="party.period as period">
+          <small *ngIf="period.closingDate && period.closingAmount != null">
+            {{ 'f016.closingBalance' | translate }} · {{ period.closingAmount }} {{ period.currency }}
+            · <time [attr.datetime]="period.closingDate">{{ period.closingDate | date:'mediumDate':'UTC' }}</time>
+          </small>
+        </ng-container>
+      </div>
+      <button *ngIf="canManage" type="button" class="secondary customer-vendor__set"
+        (click)="balanceDialog.open('set', party.key, party.label)">{{ 'f029.set' | translate }}</button>
+    </article>
+  </div>
+  <footer *ngIf="!loading && !errorKey && total" class="list-footer">
+    <span>{{ 'f029.directoryTotal' | translate:{count: total} }}</span>
+    <div>
+      <button type="button" class="secondary" [disabled]="page === 1" (click)="changePage(-1)">{{ 'f006.previous' | translate }}</button>
+      <span>{{ 'f006.page' | translate:{page: page} }}</span>
+      <button type="button" class="secondary" [disabled]="!nextCursor" (click)="changePage(1)">{{ 'f006.next' | translate }}</button>
+    </div>
+  </footer>
+</section>
+
+<ng-template #floatingSearchField>
+  <label class="catalog-search__floating-field">
+    <span class="visually-hidden">{{ 'f029.searchParty' | translate }}</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+    <input type="search" [ngModel]="search" (ngModelChange)="searchChanged($event)" maxlength="100"
+      [placeholder]="'f029.searchPartyPlaceholder' | translate">
+  </label>
+</ng-template>

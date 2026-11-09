@@ -30,12 +30,38 @@
           <div class="document-editor__line-head"><span>{{ 'f015.product' | translate }}</span><span>{{ (orderType==='purchase' ? 'f015.purchasePrice' : 'f015.salePrice') | translate }}</span><span>{{ 'f015.quantity' | translate }}</span><span>{{ 'f015.unit' | translate }}</span><span>{{ 'f015.grandTotal' | translate }}</span><span></span></div>
           <div class="document-editor__lines" *ngIf="lines().length; else noLines">
             <article class="document-editor__line" *ngFor="let line of lines(); let i=index; trackBy: trackLine">
-              <label class="document-editor__line-product"><select [ngModel]="line.productId" (ngModelChange)="updateProduct(i,$event)" [disabled]="isReadOnly()"><option value="">{{ 'f015.chooseProduct' | translate }}</option><option *ngIf="line.productId && !hasProduct(line.productId)" [value]="line.productId">{{ line.productName || line.productId }}</option><option *ngFor="let product of options().products" [value]="product.id">{{ product.name }}</option></select><span class="document-editor__line-details"><small>{{ line.productCode }}<span *ngIf="line.productCode && line.productDescription"> · </span>{{ line.productDescription }}</small><button *ngIf="canDiscount && !isReadOnly() && line.productId && !line.discount" type="button" class="document-editor__text-action" (click)="toggleLineOffer(i)">％ {{ 'f015.addDiscount' | translate }}</button></span></label>
+              <div class="document-editor__line-product">
+                <app-order-product-combobox *ngIf="kind === 'orders' && !isReadOnly(); else productSelect"
+                  [businessId]="businessId" [productName]="line.productName || line.productId"
+                  (productSelected)="selectOrderProduct(i, $event)">
+                </app-order-product-combobox>
+                <ng-template #productSelect>
+                  <select [attr.aria-label]="'f015.chooseProduct' | translate" [ngModel]="line.productId" (ngModelChange)="updateProduct(i, $event)" [disabled]="isReadOnly()">
+                    <option value="">{{ 'f015.chooseProduct' | translate }}</option>
+                    <option *ngIf="line.productId && !hasProduct(line.productId)" [value]="line.productId">{{ line.productName || line.productId }}</option>
+                    <option *ngFor="let product of options().products" [value]="product.id">{{ product.name }}</option>
+                  </select>
+                </ng-template>
+                <span class="document-editor__line-details"><small>{{ line.productCode }}<span *ngIf="line.productCode && line.productDescription"> · </span>{{ line.productDescription }}</small><button *ngIf="canDiscount && !isReadOnly() && line.productId && !line.discount" type="button" class="document-editor__text-action" (click)="toggleLineOffer(i)">％ {{ 'f015.addDiscount' | translate }}</button></span>
+              </div>
               <input class="document-editor__line-input" inputmode="decimal" [attr.aria-label]="(orderType==='purchase' ? 'f015.purchasePrice' : 'f015.salePrice') | translate" [value]="line.unitPrice" (input)="updateLine(i,'unitPrice',$any($event.target).value)" [disabled]="isReadOnly() || !line.productId" />
               <input class="document-editor__line-input" inputmode="decimal" [attr.aria-label]="'f015.quantity' | translate" [value]="line.quantity" (input)="updateLine(i,'quantity',$any($event.target).value)" [disabled]="isReadOnly() || !line.productId" />
-              <select class="document-editor__line-input" [attr.aria-label]="'f015.unit' | translate" [ngModel]="line.unitId" (ngModelChange)="updateLine(i,'unitId',$event)" [disabled]="isReadOnly() || !line.productId"><option value="">—</option><option *ngFor="let unit of unitsForLine(line)" [value]="unit.id">{{ unit.name }}</option></select>
+              <select class="document-editor__line-input" [attr.aria-label]="'f015.unit' | translate" [ngModel]="line.unitKey" (ngModelChange)="updateLine(i,'unitKey',$event)" [disabled]="isReadOnly() || !line.productId"><option value="" disabled>—</option><option *ngFor="let unit of unitsForLine(line)" [value]="unit.id" [disabled]="!unit.active">{{ unit.name }}</option></select>
               <strong class="document-editor__line-total">{{ lineTotal(line) | number:'1.2-2' }}</strong>
               <button *ngIf="!isReadOnly()" type="button" class="document-editor__remove" (click)="removeLine(i)" [attr.aria-label]="'f015.removeProduct' | translate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m3.2 3v7m4-7v7" /></svg></button>
+              <label class="document-editor__offer" *ngIf="variantsForLine(line).length > 1">
+                {{ 'f028.variants' | translate }}
+                <select [ngModel]="line.variantKey" (ngModelChange)="updateLine(i, 'variantKey', $event)" [disabled]="isReadOnly()">
+                  <option *ngFor="let variant of variantsForLine(line)" [value]="variant.key">{{ variantLabel(variant.values) || ('f028.defaultVariant' | translate) }}</option>
+                </select>
+              </label>
+              <fieldset class="document-editor__offer" *ngIf="line.serviceRange && line.serviceRange.mode !== 'none' && line.serviceRange as range" [disabled]="isReadOnly()">
+                <legend>{{ 'f028.serviceMeasurement' | translate }}</legend>
+                <label *ngIf="range.mode !== 'times'">{{ (isSingleService(range.mode) ? 'f028.serviceDate' : 'f028.startDate') | translate }}<input type="date" [ngModel]="range.startDate" (ngModelChange)="updateServiceRange(i, 'startDate', $event)" /></label>
+                <label *ngIf="range.mode !== 'dates' && range.mode !== 'one_date'">{{ (isSingleService(range.mode) ? 'f028.serviceTime' : 'f028.startTime') | translate }}<input type="time" step="1" [ngModel]="range.startTime" (ngModelChange)="updateServiceRange(i, 'startTime', $event)" /></label>
+                <label *ngIf="range.mode !== 'times' && !isSingleService(range.mode)">{{ 'f028.endDate' | translate }}<input type="date" [ngModel]="range.endDate" (ngModelChange)="updateServiceRange(i, 'endDate', $event)" /></label>
+                <label *ngIf="range.mode !== 'dates' && !isSingleService(range.mode)">{{ 'f028.endTime' | translate }}<input type="time" step="1" [ngModel]="range.endTime" (ngModelChange)="updateServiceRange(i, 'endTime', $event)" /></label>
+              </fieldset>
               <div class="document-editor__offer" *ngIf="line.discount"><strong>{{ 'f015.offerOnProduct' | translate:{product:line.productName || ''} }}</strong><div class="document-editor__offer-controls"><button type="button" [class.is-active]="line.discount.type==='percentage'" [attr.aria-pressed]="line.discount.type==='percentage'" (click)="setLineDiscountType(i,'percentage')">％</button><button type="button" [class.is-active]="line.discount.type==='fixed'" [attr.aria-pressed]="line.discount.type==='fixed'" (click)="setLineDiscountType(i,'fixed')">₹</button></div><input class="document-editor__offer-value" inputmode="decimal" [attr.aria-label]="'f015.lineDiscountPercent' | translate" [value]="line.discount.value" (input)="setLineDiscount(i,$any($event.target).value)"/><button type="button" class="document-editor__offer-close" (click)="toggleLineOffer(i)" [attr.aria-label]="'f015.removeDiscount' | translate">×</button><strong class="document-editor__offer-amount">− ₹{{ lineDiscountAmount(line) | number:'1.2-2' }}</strong></div>
             </article>
           </div>

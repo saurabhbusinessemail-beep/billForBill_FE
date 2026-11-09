@@ -1,8 +1,11 @@
 export interface PricingRule { id?: string; customerUserId: string | null; customerName?: string; audience?: 'everyone' | 'user'; minimumQuantity: number | null; sellingPrice: string; active: boolean; }
-export interface PricedProduct {
+export interface PricingVariant { key: string; values: Record<string, string>; }
+export interface VariantPrice { variantKey: string; basis: 'fixed' | 'day' | 'hour' | 'minute' | 'second'; sellingPrice: string | null; purchaseCost: string | null; }
+export interface PricedProduct { baseUnitName: string; baseUnitSymbol: string;
   id: string; name: string; type: string; categoryIds: string[]; purchaseCost: string | null; taxInclusive: boolean;
   separateTaxAmount: string | null; separateTaxId: string | null; defaultSellingPrice: string | null;
   rules: PricingRule[]; version: number; updatedAt: string | null;
+  variations: PricingVariant[]; variantPrices: VariantPrice[];
 }
 export interface PricingCategory { id: string; name: string; parentId: string | null; }
 export interface PricingCustomer { id: string; name: string; }

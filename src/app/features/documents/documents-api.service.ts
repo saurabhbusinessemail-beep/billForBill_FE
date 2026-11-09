@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { apiBaseUrl } from '../../app-config';
 import { map, Observable } from 'rxjs';
-import { ApiEnvelope, BusinessDocument, DocumentKind, DocumentOptions, DocumentPage, OrderType } from './documents.models';
+import { ApiEnvelope, BusinessDocument, DocumentKind, DocumentOptions, DocumentPage, OrderType, ProductOption } from './documents.models';
 
 const API = `${apiBaseUrl()}/businesses`;
 @Injectable({ providedIn: 'root' })
@@ -16,7 +16,13 @@ export class DocumentsApiService {
     return this.http.get<ApiEnvelope<DocumentPage<T>>>(`${API}/${encodeURIComponent(businessId)}/${kind}`, { params, withCredentials: true }).pipe(map(x => x.data));
   }
   get(businessId: string, kind: DocumentKind, id: string): Observable<BusinessDocument> { return this.http.get<ApiEnvelope<BusinessDocument>>(`${API}/${encodeURIComponent(businessId)}/${kind}/${encodeURIComponent(id)}`, { withCredentials: true }).pipe(map(x => x.data)); }
-  options(businessId: string, kind: DocumentKind): Observable<DocumentOptions> { return this.http.get<ApiEnvelope<DocumentOptions>>(`${API}/${encodeURIComponent(businessId)}/${kind}/options`, { withCredentials: true }).pipe(map(x => x.data)); }
+  options(businessId: string, kind: DocumentKind, includeProducts = true): Observable<DocumentOptions> {
+    const params = includeProducts ? undefined : { includeProducts: 'false' };
+    return this.http.get<ApiEnvelope<DocumentOptions>>(`${API}/${encodeURIComponent(businessId)}/${kind}/options`, { params, withCredentials: true }).pipe(map(x => x.data));
+  }
+  searchOrderProducts(businessId: string, q: string): Observable<ProductOption[]> {
+    return this.http.get<ApiEnvelope<ProductOption[]>>(`${API}/${encodeURIComponent(businessId)}/orders/products/search`, { params: { q }, withCredentials: true }).pipe(map(x => x.data));
+  }
   create(businessId: string, kind: DocumentKind, body: unknown): Observable<BusinessDocument> { return this.http.post<ApiEnvelope<BusinessDocument>>(`${API}/${encodeURIComponent(businessId)}/${kind}`, body, { withCredentials: true, headers: { 'Idempotency-Key': crypto.randomUUID() } }).pipe(map(x => x.data)); }
   update(businessId: string, kind: DocumentKind, id: string, body: unknown): Observable<BusinessDocument> { return this.http.patch<ApiEnvelope<BusinessDocument>>(`${API}/${encodeURIComponent(businessId)}/${kind}/${encodeURIComponent(id)}`, body, { withCredentials: true }).pipe(map(x => x.data)); }
   remove(businessId: string, kind: DocumentKind, id: string): Observable<void> { return this.http.delete<ApiEnvelope<void>>(`${API}/${encodeURIComponent(businessId)}/${kind}/${encodeURIComponent(id)}`, { withCredentials: true }).pipe(map(x => x.data)); }

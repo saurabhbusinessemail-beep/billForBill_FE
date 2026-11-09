@@ -37,9 +37,10 @@
       <div class="catalog-card__image" *ngIf="kind === 'products'"><img *ngIf="record.hasImage" [src]="imageUrl(record) | async" [alt]="record.name" /><span *ngIf="!record.hasImage" class="catalog-missing-image">{{ 'f008.imageMissing' | translate }}</span></div>
       <div class="catalog-icon" *ngIf="kind !== 'products'" aria-hidden="true">{{ kind === 'business-types' ? '◈' : kind === 'units' ? '↔' : kind === 'taxes' ? '%' : kind === 'attributes' ? '⌘' : '▦' }}</div>
       <div class="catalog-card__copy"><h2>{{ record.name }}</h2>
-        <p class="catalog-card__subtitle" *ngIf="kind==='products'">{{ ('f008.type.' + (record.type || 'physical').toLowerCase()) | translate }}</p>
+        <p class="catalog-card__subtitle" *ngIf="kind==='products' && record.title && record.title !== record.name">{{ record.title }}</p>
+        <p class="catalog-card__subtitle" *ngIf="kind==='products'">{{ productType(record.type || '') | translate }}<ng-container *ngIf="record.brand"> · {{ record.brand }}</ng-container></p>
         <p class="catalog-card__subtitle" *ngIf="kind==='business-types'">{{ 'f008.productCount' | translate:{count:record.productCount || 0} }} · {{ 'f008.taxCount' | translate:{count:record.taxCount || 0} }}</p>
-        <p class="catalog-card__subtitle" *ngIf="kind==='products'">{{ 'f008.productUnits' | translate:{count:record.unitCount || 0} }} · {{ record.baseUnitId ? unitLabel(record.baseUnitId) : ('f008.unitMissing' | translate) }}</p>
+        <p class="catalog-card__subtitle" *ngIf="kind==='products'">{{ 'f008.productUnits' | translate:{count:record.unitCount || 0} }} · {{ record.variations?.[0]?.baseUnit?.name || ('f026.repair' | translate) }}</p>
         <p class="catalog-card__subtitle" *ngIf="kind==='taxes'">{{ record.calculationType === 'percentage' ? (record.value + '%') : ((record.currency || '') + ' ' + record.value) }}</p>
         <p class="catalog-card__subtitle" *ngIf="kind==='units'">{{ record.symbol }} · {{ record.dimension }}</p>
       </div>
@@ -47,6 +48,29 @@
     </article>
   </div>
 </section>
+
+<div class="catalog-backdrop" *ngIf="barcodeEntryOpen">
+  <section class="catalog-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-barcode-title">
+    <header class="catalog-dialog__header">
+      <button class="catalog-dialog__close" type="button" (click)="close()" [attr.aria-label]="'f008.close' | translate">×</button>
+      <h2 id="catalog-barcode-title">{{ 'f028.startProduct' | translate }}</h2>
+    </header>
+    <form (ngSubmit)="lookupBarcode(value.variations[0], value.variations[0].barcode)">
+      <div class="catalog-dialog__body">
+        <label class="catalog-field">
+          <span>{{ 'f028.barcode' | translate }}</span>
+          <input name="entryBarcode" maxlength="80" autofocus [ngModel]="value.variations[0].barcode" (ngModelChange)="barcodeChanged(value.variations[0], $event)"
+            (keydown.enter)="$event.preventDefault(); lookupBarcode(value.variations[0], value.variations[0].barcode)" />
+        </label>
+        <p>{{ 'f028.startProductHint' | translate }}</p>
+        <p *ngIf="barcodeStatus" role="status">{{ barcodeStatus | translate }}</p>
+      </div>
+      <div class="catalog-dialog__actions">
+        <button type="button" class="catalog-button catalog-button--primary" (click)="continueAddingProduct()">{{ 'f028.addNormally' | translate }}</button>
+      </div>
+    </form>
+  </section>
+</div>
 
 <div class="catalog-backdrop" *ngIf="editorOpen">
   <section class="catalog-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-editor-title">
@@ -56,74 +80,94 @@
     </header>
     <form (ngSubmit)="save()" #catalogForm="ngForm" novalidate>
       <div class="catalog-dialog__body">
-      <label class="catalog-field"><span>{{ 'f008.name' | translate }} <b>*</b></span><input name="name" required maxlength="160" [(ngModel)]="value.name" /></label>
-      <label class="catalog-field" *ngIf="kind==='business-types' || kind==='products'"><span>{{ 'f008.description' | translate }}</span><textarea name="description" maxlength="1000" [(ngModel)]="value.description"></textarea></label>
+      <ng-container *ngIf="kind==='products'">
+        <div class="product-image-editor"><img *ngIf="imagePreview" [src]="imagePreview" [alt]="value.name" /><img *ngIf="!imagePreview && editing?.hasImage" [src]="api.productImage(editing!.imageId || editing!.id, businessId || undefined) | async" [alt]="value.name" /><div *ngIf="!businessId || !editing || editing.canEditImage"><strong>{{ 'f008.productImage' | translate }}</strong><small>{{ (isProcessingImage ? 'f008.imageProcessing' : 'f008.imageGuide') | translate }}</small><label class="catalog-button catalog-button--secondary"><input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseImage($event)" />{{ 'f008.chooseImage' | translate }}</label><span class="catalog-error-text" *ngIf="imageError">{{ imageError | translate }}</span></div></div>
+        <div *ngIf="barcodeImages.length && (!businessId || !editing || editing.canEditImage)">
+          <div *ngFor="let url of barcodeImages">
+            <img [src]="url" referrerpolicy="no-referrer" [alt]="value.name" width="64" height="64" />
+            <button type="button" class="catalog-button catalog-button--secondary" [disabled]="isProcessingImage" (click)="useBarcodeImage(url)">{{ 'f028.useLookupImage' | translate }}</button>
+          </div>
+        </div>
+      </ng-container>
+      <div [class.catalog-variation__grid]="kind === 'products'">
+        <label class="catalog-field"><span>{{ 'f008.name' | translate }} <b>*</b></span><input name="name" required maxlength="160" [(ngModel)]="value.name" /></label>
+        <label class="catalog-field" *ngIf="kind === 'products'"><span>{{ 'f008.productType' | translate }} *</span><select name="type" [(ngModel)]="value.type" required><option value="Goods">{{ 'f028.goods' | translate }}</option><option value="Services">{{ 'f028.services' | translate }}</option></select></label>
+      </div>
+      <label class="catalog-field" *ngIf="kind==='business-types'"><span>{{ 'f008.description' | translate }}</span><textarea name="description" maxlength="1000" [(ngModel)]="value.description"></textarea></label>
 
       <ng-container *ngIf="kind==='business-types'">
         <fieldset class="catalog-selector"><legend>{{ 'f008.linkProducts' | translate }}</legend><label *ngFor="let item of products"><input type="checkbox" [checked]="checked('productIds',item.id)" (change)="toggle('productIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('products')">＋ {{ 'f008.addProduct' | translate }}</button></fieldset>
         <fieldset class="catalog-selector"><legend>{{ 'f008.linkTaxes' | translate }}</legend><label *ngFor="let item of taxes"><input type="checkbox" [checked]="checked('taxComponentIds',item.id)" (change)="toggle('taxComponentIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('taxes')">＋ {{ 'f008.addTax' | translate }}</button></fieldset>
-        <section class="off-config" aria-labelledby="off-config-title">
-          <h3 id="off-config-title">{{ 'f025.mappingTitle' | translate }}</h3>
-          <p>{{ 'f025.mappingHint' | translate }}</p>
-          <label class="catalog-field"><span>{{ 'f025.countryTag' | translate }}</span><input name="offCountryTag" maxlength="80" placeholder="India" [(ngModel)]="value.offCountryTag" /></label>
-          <label class="catalog-field"><span>{{ 'f025.categoryTags' | translate }}</span><textarea name="offCategoryTags" rows="5" maxlength="2200" placeholder="Rice&#10;Biscuits" [(ngModel)]="value.offCategoryTags" (ngModelChange)="clearOffSuggestions()"></textarea></label>
-          <button type="button" class="catalog-button catalog-button--secondary off-config__suggest-button" [disabled]="offSuggestionsLoading || !hasOffSuggestionQuery" (click)="searchOffCategorySuggestions()">{{ 'f025.showSuggestions' | translate }}</button>
-          <div class="off-config__suggestions" *ngIf="offSuggestionsLoading || offSuggestions.length">
-            <small *ngIf="offSuggestionsLoading" aria-live="polite">{{ 'f025.suggestionsLoading' | translate }}</small>
-            <ng-container *ngIf="!offSuggestionsLoading && offSuggestions.length">
-              <label class="off-config__suggestion off-config__suggestion--select-all"><input type="checkbox" [checked]="allOffSuggestionsSelected" (change)="toggleAllOffSuggestions($event)" />{{ 'f025.selectAllSuggestions' | translate }}</label>
-              <label class="off-config__suggestion" *ngFor="let item of offSuggestions"><input type="checkbox" [checked]="isOffSuggestionSelected(item.tag)" (change)="toggleOffSuggestion(item.tag, $event)" />{{ item.name }}</label>
-              <div class="off-config__suggestions-footer"><button type="button" class="catalog-button catalog-button--primary" [disabled]="!selectedOffSuggestions.length" (click)="addSelectedOffSuggestions()">{{ 'f025.addSelectedSuggestions' | translate }}</button></div>
-            </ng-container>
-          </div>
-          <label class="off-config__active"><input type="checkbox" name="offIsActive" [(ngModel)]="value.offIsActive" />{{ 'f025.mappingEnabled' | translate }}</label>
-          <p class="off-config__license">{{ 'f025.licenseNotice' | translate }} <a href="https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/" target="_blank" rel="noopener noreferrer">{{ 'f025.licenseDetails' | translate }}</a></p>
-          <p *ngIf="isSuperAdmin && offMappingDirty" class="off-config__sync-meta">{{ 'f025.saveMappingFirst' | translate }}</p>
-          <p *ngIf="isSuperAdmin && !offMappingDirty && (!value.offIsActive || !offMappingComplete)" class="off-config__sync-meta">{{ !value.offIsActive ? ('f025.configDisabled' | translate) : ('f025.configRequired' | translate) }}</p>
-          <p *ngIf="editing?.openFoodFactsConfig?.lastSyncAt" class="off-config__sync-meta">{{ 'f025.lastSync' | translate }}: {{ editing?.openFoodFactsConfig?.lastSyncAt | date:'medium' }} · {{ ('f025.status.' + editing?.openFoodFactsConfig?.lastSyncStatus) | translate }}</p>
-          <div *ngIf="isSuperAdmin && editing" class="off-config__actions">
-            <div *ngIf="offSyncStarted" class="off-config__progress" aria-live="polite"><span>{{ 'f025.totalFetched' | translate }}: <strong>{{ offTotalFetched }}</strong></span><span>{{ 'f025.repetitionsLeft' | translate }}: <strong>{{ offRepetitionsLeft }}</strong></span></div>
-            <ng-container *ngIf="!offSyncing">
-              <label class="off-config__number"><span>{{ 'f025.fetchLimit' | translate }}</span><input type="number" name="offSyncLimit" min="1" step="1" inputmode="numeric" [(ngModel)]="offSyncLimit" /></label>
-              <label class="off-config__number"><span>{{ 'f025.repetitionCount' | translate }}</span><input type="number" name="offSyncRepetitions" min="1" step="1" inputmode="numeric" [(ngModel)]="offSyncRepetitions" /></label>
-              <button type="button" class="catalog-button catalog-button--secondary" [disabled]="isSaving || offMappingDirty || !value.offIsActive || !offMappingComplete || !offSyncLimitsValid" (click)="syncOpenFoodFacts(true)">{{ 'f025.previewSync' | translate }}</button>
-              <button type="button" class="catalog-button catalog-button--primary" [disabled]="isSaving || offMappingDirty || !value.offIsActive || !offMappingComplete || !offSyncLimitsValid" (click)="syncOpenFoodFacts(false)">{{ 'f025.runSync' | translate }}</button>
-            </ng-container>
-          </div>
-          <p *ngIf="offSyncErrorMessage" class="catalog-error-text" role="alert">{{ 'f025.repetitionCircuitBreak' | translate }} {{ offSyncErrorMessage }}</p>
-          <div *ngIf="offSyncResult" class="off-sync-result" aria-live="polite">
-            <strong>{{ 'f025.syncSummary' | translate }}</strong>
-            <p class="off-sync-result__subtitle">{{ (offSyncResult.dryRun ? 'f025.resultCountsPreview' : 'f025.resultCounts') | translate:{scanned:offSyncResult.summary.scanned,inserted:offSyncResult.summary.inserted,matched:offSyncResult.summary.matched,skipped:offSyncResult.summary.skipped,ambiguous:offSyncResult.summary.ambiguous,failed:offSyncResult.summary.failed} }}</p>
-            <p *ngIf="offSyncResult.dryRun" class="off-sync-result__subtitle">{{ 'f025.plannedCatalogAdditions' | translate:{units:offSyncResult.summary.newUnits,categories:offSyncResult.summary.newCategories,attributes:offSyncResult.summary.newAttributes} }}</p>
-            <div *ngIf="offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions" class="off-sync-result__details">
-              <div class="off-sync-result__tabs" role="tablist" [attr.aria-label]="'f025.additionsTabs' | translate">
-                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='products'" [class.active]="offSyncTab==='products'" (click)="offSyncTab='products'">{{ 'f025.productsTab' | translate }} ({{ offSyncProductAdditions.length }})</button>
-                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='categories'" [class.active]="offSyncTab==='categories'" (click)="offSyncTab='categories'">{{ 'f008.categories' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.categories?.length || 0 }})</button>
-                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='units'" [class.active]="offSyncTab==='units'" (click)="offSyncTab='units'">{{ 'f008.units' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.units?.length || 0 }})</button>
-                <button type="button" role="tab" [attr.aria-selected]="offSyncTab==='attributes'" [class.active]="offSyncTab==='attributes'" (click)="offSyncTab='attributes'">{{ 'f008.attributes' | translate }} ({{ (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.attributes?.length || 0 }})</button>
-              </div>
-              <div class="off-sync-result__table-scroll" [ngSwitch]="offSyncTab">
-                <table *ngSwitchCase="'products'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.gtin' | translate }}</th><th>{{ 'f025.statusColumn' | translate }}</th></tr></thead><tbody><tr *ngFor="let result of offSyncProductAdditions"><td><a *ngIf="result.sourceUrl" [href]="result.sourceUrl" target="_blank" rel="noopener noreferrer">{{ result.name || result.code }}</a><span *ngIf="!result.sourceUrl">{{ result.name || result.code }}</span></td><td>{{ result.code }}</td><td>{{ ('f025.result.' + result.status) | translate }}</td></tr></tbody></table>
-                <table *ngSwitchCase="'categories'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.parentCategory' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.categories"><td>{{ item.name }}</td><td>{{ item.parentName || '—' }}</td></tr></tbody></table>
-                <table *ngSwitchCase="'units'"><thead><tr><th>{{ 'f008.name' | translate }}</th><th>{{ 'f025.unitSymbol' | translate }}</th><th>{{ 'f025.unitDimension' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.units"><td>{{ item.name }}</td><td>{{ item.symbol || '—' }}</td><td>{{ item.dimension || '—' }}</td></tr></tbody></table>
-                <table *ngSwitchCase="'attributes'"><thead><tr><th>{{ 'f008.name' | translate }}</th></tr></thead><tbody><tr *ngFor="let item of (offSyncResult.catalogAdditions || offSyncResult.plannedCatalogAdditions)?.attributes"><td>{{ item.name }}</td></tr></tbody></table>
-              </div>
-            </div>
-            <small *ngIf="offSyncResult.dryRun">{{ 'f025.dryRunNotice' | translate }}</small>
-          </div>
-        </section>
       </ng-container>
 
       <ng-container *ngIf="kind==='products'">
+        <div class="catalog-variation__grid">
+          <label class="catalog-field"><span>{{ 'f028.productTitle' | translate }}</span><input name="productTitle" maxlength="160" [(ngModel)]="value.title" /></label>
+          <label class="catalog-field"><span>{{ 'f028.brand' | translate }}</span><input name="productBrand" maxlength="120" [(ngModel)]="value.brand" /></label>
+        </div>
         <label class="catalog-field" *ngIf="businessId"><span>{{ 'f016.productCode' | translate }}</span><input name="productCode" maxlength="40" [(ngModel)]="value.code" /></label>
-        <label class="catalog-field"><span>{{ 'f025.gtin' | translate }}</span><input name="gtin" inputmode="numeric" maxlength="14" [(ngModel)]="value.gtin" /></label>
-        <label class="catalog-field"><span>{{ 'f025.brand' | translate }}</span><input name="brand" maxlength="120" [(ngModel)]="value.brand" /></label>
-        <label class="catalog-field"><span>{{ 'f008.productType' | translate }} *</span><select name="type" [(ngModel)]="value.type"><option value="Physical">{{ 'f008.type.physical' | translate }}</option><option value="Service">{{ 'f008.type.service' | translate }}</option><option value="Digital">{{ 'f008.type.digital' | translate }}</option><option value="Bundle">{{ 'f008.type.bundle' | translate }}</option><option value="Subscription">{{ 'f008.type.subscription' | translate }}</option><option value="Rental">{{ 'f008.type.rental' | translate }}</option><option value="Non-stock">{{ 'f008.type.non-stock' | translate }}</option><option value="Consumable">{{ 'f008.type.consumable' | translate }}</option></select></label>
-        <div class="product-image-editor"><img *ngIf="imagePreview" [src]="imagePreview" [alt]="value.name" /><img *ngIf="!imagePreview && editing?.hasImage" [src]="api.productImage(editing!.imageId || editing!.id, businessId || undefined) | async" [alt]="value.name" /><div *ngIf="!businessId"><strong>{{ 'f008.productImage' | translate }} *</strong><small>{{ (isProcessingImage ? 'f008.imageProcessing' : 'f008.imageGuide') | translate }}</small><label class="catalog-button catalog-button--secondary"><input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseImage($event)" />{{ 'f008.chooseImage' | translate }}</label><span class="catalog-error-text" *ngIf="imageError">{{ imageError | translate }}</span></div></div>
-        <label class="catalog-field"><span>{{ 'f008.baseUnit' | translate }} *</span><select name="baseUnitId" required [(ngModel)]="value.baseUnitId"><option value="">{{ 'f008.chooseUnit' | translate }}</option><option *ngFor="let unit of units" [value]="unit.id">{{ unit.name }} ({{ unit.symbol }})</option></select></label><button class="catalog-inline-add" type="button" (click)="openInline('units')">＋ {{ 'f008.addUnit' | translate }}</button>
+        <label class="catalog-field" *ngIf="value.type === 'Services'">
+          <span>{{ 'f028.serviceMeasurement' | translate }}</span>
+          <select name="serviceMeasurement" [(ngModel)]="value.serviceMeasurement">
+            <option value="none">{{ 'f028.blankServiceMeasurement' | translate }}</option>
+            <option value="date_time">{{ 'f028.date_time' | translate }}</option>
+            <option value="dates">{{ 'f028.dates' | translate }}</option>
+            <option value="times">{{ 'f028.times' | translate }}</option>
+            <option value="one_date">{{ 'f028.one_date' | translate }}</option>
+            <option value="one_date_time">{{ 'f028.one_date_time' | translate }}</option>
+          </select>
+        </label>
+        <div class="catalog-field">
+          <label for="product-attribute-input">{{ 'f028.attributeNames' | translate }}</label>
+          <div class="catalog-attribute-chips">
+            <span class="catalog-attribute-chip" *ngFor="let attribute of value.attributes">
+              {{ attribute }}
+              <button type="button" (click)="removeAttribute(attribute); attributeInput.focus()"
+                [attr.aria-label]="'f028.removeAttribute' | translate:{name:attribute}">×</button>
+            </span>
+            <input #attributeInput id="product-attribute-input" [value]="attributeDraft"
+              (input)="typeAttribute(attributeInput)" (blur)="commitAttribute(attributeInput)"
+              (keydown.enter)="$event.preventDefault(); commitAttribute(attributeInput)"
+              aria-describedby="product-attribute-hint" />
+          </div>
+          <small id="product-attribute-hint">{{ 'f028.attributeHint' | translate }}</small>
+        </div>
+        <fieldset class="catalog-selector catalog-variations">
+          <legend>{{ 'f028.variants' | translate }}</legend>
+          <div class="catalog-variation" *ngFor="let variant of value.variations; index as i">
+            <strong>{{ 'f028.variationNumber' | translate:{number:i + 1} }}</strong>
+            <label class="catalog-field"><span>{{ 'f028.barcode' | translate }}</span><input [name]="'barcode'+i" maxlength="80" [ngModel]="variant.barcode" (ngModelChange)="barcodeChanged(variant, $event)" (keydown.enter)="$event.preventDefault(); lookupBarcode(variant, variant.barcode)" /></label>
+            <label class="catalog-field"><span>{{ 'f028.mrp' | translate }}</span><input [name]="'mrp'+i" inputmode="decimal" [(ngModel)]="variant.mrp" /></label>
+            <p *ngIf="barcodeVariant === variant && barcodeStatus" role="status">{{ barcodeStatus | translate }}</p>
+            <label class="catalog-field" *ngFor="let attribute of value.attributes; index as j">
+              <span>{{ attribute }}</span>
+              <input [name]="'variant-' + i + '-' + j" maxlength="160" [(ngModel)]="variant.values[attribute]" />
+            </label>
+            <fieldset class="catalog-selector catalog-product-base"><legend>{{ 'f008.baseUnit' | translate }}</legend>
+              <label class="catalog-field"><span>{{ 'f026.unitName' | translate }}</span><input [name]="'baseName'+i" required [(ngModel)]="variant.baseUnit.name" /></label>
+              <label class="catalog-field"><span>{{ 'f026.symbol' | translate }}</span><input [name]="'baseSymbol'+i" required [(ngModel)]="variant.baseUnit.symbol" /></label>
+              <label class="catalog-field"><span>{{ 'f026.dimension' | translate }}</span><select [name]="'baseDimension'+i" [(ngModel)]="variant.baseUnit.dimension"><option *ngFor="let d of productDimensions" [value]="d">{{ 'f026.dimension.' + d | translate }}</option></select></label>
+              <p>{{ 'f026.baseHint' | translate }}</p>
+            </fieldset>
+            <fieldset class="catalog-selector catalog-product-units"><legend>{{ 'f028.additionalUnits' | translate }}</legend>
+              <div class="catalog-unit-row" *ngFor="let unit of variant.additionalUnits; let j=index">
+                <label class="catalog-field"><span>{{ 'f026.unitName' | translate }}</span><input [name]="'unitName'+i+'-'+j" [(ngModel)]="unit.name" required /></label>
+                <label class="catalog-field"><span>{{ 'f026.symbol' | translate }}</span><input [name]="'unitSymbol'+i+'-'+j" [(ngModel)]="unit.symbol" required /></label>
+                <label class="catalog-field"><span>{{ 'f026.factor' | translate }}</span><input [name]="'factor'+i+'-'+j" [(ngModel)]="unit.factorToBase" inputmode="decimal" required /></label>
+                <label class="catalog-field"><span>{{ 'f026.dimension' | translate }}</span><select [name]="'dim'+i+'-'+j" [(ngModel)]="unit.dimension"><option *ngFor="let d of productDimensions" [value]="d">{{ 'f026.dimension.' + d | translate }}</option></select></label>
+                <label><input type="checkbox" [name]="'active'+i+'-'+j" [(ngModel)]="unit.active" />{{ 'f026.active' | translate }}</label>
+                <small *ngIf="unit.sourceText">{{ unit.sourceText }}</small>
+                <button class="catalog-button catalog-button--secondary" type="button" (click)="removeProductUnit(variant,unit.key)">{{ 'f026.remove' | translate }}</button>
+              </div>
+
+              <button class="catalog-button catalog-button--secondary" type="button" (click)="addProductUnit(variant)">＋ {{ 'f008.addUnit' | translate }}</button>
+            </fieldset>
+            <button *ngIf="value.variations.length > 1" type="button" class="catalog-button catalog-button--secondary" (click)="removeVariation(i)">{{ 'f028.removeVariant' | translate }}</button>
+          </div>
+          <div class="catalog-variations__footer"><button type="button" class="catalog-button catalog-button--secondary" [disabled]="!value.attributes.length" (click)="addVariation()">{{ 'f028.addVariant' | translate }}</button></div>
+        </fieldset>
+
         <fieldset class="catalog-selector"><legend>{{ 'f008.categories' | translate }} {{ 'f008.optional' | translate }}</legend><label *ngFor="let item of categories"><input type="checkbox" [checked]="checked('categoryIds',item.id)" (change)="toggle('categoryIds',item.id,$event)" />{{ categoryName(item.id) }}</label><button type="button" class="catalog-inline-add" (click)="openInline('categories')">＋ {{ 'f008.addCategory' | translate }}</button></fieldset>
-        <fieldset class="catalog-selector"><legend>{{ 'f008.additionalUnits' | translate }}</legend><div class="additional-unit" *ngFor="let unit of units"><label><input type="checkbox" [checked]="isAdditionalUnit(unit.id)" (change)="toggleAdditionalUnit(unit.id,$event)" />{{ unit.name }} ({{ unit.symbol }})</label><input *ngIf="isAdditionalUnit(unit.id)" type="number" min="0.000001" step="any" [value]="conversionFactor(unit.id)" (input)="setAdditionalConversion(unit.id,$event)" [attr.aria-label]="'f008.conversionFactor' | translate:{unit:unit.name}" /></div><button class="catalog-inline-add" type="button" (click)="openInline('units')">＋ {{ 'f008.addUnit' | translate }}</button></fieldset>
-        <fieldset class="catalog-selector"><legend>{{ 'f008.attributes' | translate }}</legend><label *ngFor="let item of attributes"><input type="checkbox" [checked]="checked('attributeIds',item.id)" (change)="toggle('attributeIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('attributes')">＋ {{ 'f008.addAttribute' | translate }}</button></fieldset>
         <label class="catalog-field"><span>{{ 'f008.taxMode' | translate }}</span><select name="taxMode" [(ngModel)]="value.taxMode"><option value="inherit">{{ 'f008.inheritTaxes' | translate }}</option><option value="specific">{{ 'f008.productTaxes' | translate }}</option></select></label>
         <fieldset class="catalog-selector" *ngIf="value.taxMode==='specific'"><legend>{{ 'f008.linkTaxes' | translate }}</legend><label *ngFor="let item of taxes"><input type="checkbox" [checked]="checked('taxComponentIds',item.id)" (change)="toggle('taxComponentIds',item.id,$event)" />{{ item.name }}</label><button type="button" class="catalog-inline-add" (click)="openInline('taxes')">＋ {{ 'f008.addTax' | translate }}</button></fieldset>
       </ng-container>
@@ -135,12 +179,12 @@
 
       <p class="catalog-error-text" *ngIf="errorKey" role="alert">{{ errorKey | translate }}</p>
       </div>
-      <div class="catalog-dialog__actions"><button class="catalog-button catalog-button--secondary" type="button" (click)="close()">{{ 'f008.cancel' | translate }}</button><button class="catalog-button catalog-button--primary" type="submit" [disabled]="isSaving || isProcessingImage || catalogForm.invalid">{{ (isSaving?'f008.saving':'f008.save') | translate }}</button></div>
+      <div class="catalog-dialog__actions"><button class="catalog-button catalog-button--secondary" type="button" (click)="close()">{{ 'f008.cancel' | translate }}</button><button class="catalog-button catalog-button--primary" type="submit" [disabled]="isSaving || isProcessingImage || barcodeStatus === 'f028.lookupLoading' || catalogForm.invalid">{{ (isSaving?'f008.saving':'f008.save') | translate }}</button></div>
     </form>
 
     <div class="catalog-inline-backdrop" *ngIf="inlineKind"><section class="catalog-inline-dialog" role="dialog" aria-modal="true" aria-labelledby="inline-title"><h3 id="inline-title">{{ 'f008.add' | translate }} {{ ('f008.'+inlineKind) | translate }}</h3><label class="catalog-field"><span>{{ 'f008.name' | translate }} *</span><input name="inlineName" required [(ngModel)]="inline.name" /></label>
       <ng-container *ngIf="inlineKind==='units'"><label class="catalog-field"><span>{{ 'f008.symbol' | translate }} *</span><input name="inlineSymbol" required [(ngModel)]="inline.symbol" /></label><label class="catalog-field"><span>{{ 'f008.dimension' | translate }}</span><select name="inlineDimension" [(ngModel)]="inline.dimension"><option *ngFor="let dim of ['mass','volume','length','count','package','time','service','other']" [value]="dim">{{ ('f008.dimension.'+dim) | translate }}</option></select></label></ng-container>
-      <ng-container *ngIf="inlineKind==='products'"><label class="catalog-field"><span>{{ 'f008.productType' | translate }}</span><select name="inlineType" [(ngModel)]="inline.type"><option value="Physical">{{ 'f008.type.physical' | translate }}</option><option value="Service">{{ 'f008.type.service' | translate }}</option><option value="Digital">{{ 'f008.type.digital' | translate }}</option><option value="Bundle">{{ 'f008.type.bundle' | translate }}</option><option value="Subscription">{{ 'f008.type.subscription' | translate }}</option><option value="Rental">{{ 'f008.type.rental' | translate }}</option><option value="Non-stock">{{ 'f008.type.non-stock' | translate }}</option><option value="Consumable">{{ 'f008.type.consumable' | translate }}</option></select></label><label class="catalog-field"><span>{{ 'f008.baseUnit' | translate }} *</span><select name="inlineBaseUnit" [(ngModel)]="inline.baseUnitId"><option value="">{{ 'f008.chooseUnit' | translate }}</option><option *ngFor="let item of units" [value]="item.id">{{ item.name }} ({{ item.symbol }})</option></select></label><ng-container *ngIf="!businessId"><label class="catalog-field"><span>{{ 'f008.productImage' | translate }} *</span><input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseImage($event,true)" /></label><img class="inline-preview" *ngIf="inlinePreview" [src]="inlinePreview" [alt]="inline.name" /></ng-container></ng-container>
+      <ng-container *ngIf="inlineKind==='products'"><label class="catalog-field"><span>{{ 'f008.productType' | translate }}</span><select name="inlineType" [(ngModel)]="inline.type"><option value="Goods">{{ 'f028.goods' | translate }}</option><option value="Services">{{ 'f028.services' | translate }}</option></select></label><label class="catalog-field"><span>{{ 'f008.baseUnit' | translate }} *</span><input name="inlineBaseName" [(ngModel)]="inline.variations[0].baseUnit.name" required /><input name="inlineBaseSymbol" [(ngModel)]="inline.variations[0].baseUnit.symbol" required [attr.aria-label]="'f026.symbol' | translate" /></label><ng-container><label class="catalog-field"><span>{{ 'f008.productImage' | translate }}</span><input type="file" accept="image/jpeg,image/png,image/webp" (change)="chooseImage($event,true)" /></label><img class="inline-preview" *ngIf="inlinePreview" [src]="inlinePreview" [alt]="inline.name" /></ng-container></ng-container>
       <ng-container *ngIf="inlineKind==='taxes'"><label class="catalog-field"><span>{{ 'f008.calculationType' | translate }}</span><select name="inlineCalc" [(ngModel)]="inline.calculationType"><option value="percentage">{{ 'f008.percentage' | translate }}</option><option value="fixed">{{ 'f008.fixed' | translate }}</option></select></label><label class="catalog-field"><span>{{ 'f008.rateValue' | translate }}</span><input name="inlineValue" type="number" min="0" [(ngModel)]="inline.value" /></label><label class="catalog-field" *ngIf="inline.calculationType==='fixed'"><span>{{ 'f008.currency' | translate }}</span><input name="inlineCurrency" [(ngModel)]="inline.currency" /></label><label class="catalog-field"><span>{{ 'f008.effectiveStart' | translate }}</span><input name="inlineStart" type="date" [(ngModel)]="inline.effectiveStart" /></label></ng-container>
       <p class="catalog-error-text" *ngIf="inlineError" role="alert">{{ inlineError | translate }}</p><div class="catalog-dialog__actions"><button class="catalog-button catalog-button--secondary" type="button" (click)="closeInline()">{{ 'f008.cancel' | translate }}</button><button class="catalog-button catalog-button--primary" type="button" [disabled]="isSaving || isProcessingImage" (click)="saveInline()">{{ 'f008.save' | translate }}</button></div>
     </section></div>

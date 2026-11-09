@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { BusinessAdminService } from '../people/business-admin.service';
 import { PricingApiService } from './pricing-api.service';
-import { PricedProduct, PricingCategory, PricingCustomer, PricingRule } from './pricing.models';
+import { PricedProduct, PricingCategory, PricingCustomer, PricingRule, VariantPrice } from './pricing.models';
 import { COUNTRY_CODES } from '../../shared/phone/country-codes';
 import { parsePhoneE164 } from '../../shared/phone/phone.models';
 import { AuthService } from '../../core/auth/auth.service';
@@ -21,6 +21,17 @@ export class PricingPageComponent implements OnInit, OnDestroy, AfterViewInit {
   editor: 'purchase' | 'selling' | null = null; current: PricedProduct | null = null;
   purchaseCost = ''; taxInclusive = true; separateTaxAmount = ''; separateTaxId = '';
   defaultSellingPrice = ''; rules: PricingRule[] = [];
+  variantPrices: Array<VariantPrice & { label: string }> = [];
+  readonly durationBases = ['day', 'hour', 'minute', 'second'];
+  get servicePricing(): boolean { return ['Service', 'Services'].includes(this.current?.type || ''); }
+  private editVariantPrices(row: PricedProduct): void {
+    this.variantPrices = row.variations.map(variant => ({
+      ...(row.variantPrices.find(price => price.variantKey === variant.key) || {
+        variantKey: variant.key, basis: 'fixed', sellingPrice: null, purchaseCost: null,
+      }),
+      label: Object.entries(variant.values).map(([name, value]) => `${name}: ${value}`).join(', '),
+    }));
+  }
   selected = new Set<string>(); bulkValue = ''; bulkPreviewItems: Array<{ productId: string; name?: string; oldValue?: string | null; newValue?: string }> = [];
   customerDialog = false; customerName = ''; customerPhone = ''; customerRegion = 'US'; customerRuleIndex = -1; customerError = ''; customerBusy = false;
   workbookValidation: WorkbookValidation | null = null; workbookChoices: WorkbookDecision[] = []; workbookBusy = false; showWorkbookLoader = false; showExportComplete = false; workbookType: Tab = 'selling';
@@ -63,7 +74,11 @@ export class PricingPageComponent implements OnInit, OnDestroy, AfterViewInit {
   get separateTaxCount(): number { return this.rows.filter(row => !row.taxInclusive && (row.separateTaxAmount || row.separateTaxId)).length; }
   get visibleRows(): PricedProduct[] { return this.rows.filter(row => {
     if (this.tab === 'selling' && this.selectedCustomerId && !this.customerRules(row).length) return false;
-    return this.statusFilter === 'all' || (this.statusFilter === 'priced' ? (this.tab === 'purchase' ? !!row.purchaseCost : !!row.defaultSellingPrice || Boolean(this.selectedCustomerId && this.customerRules(row).length)) : (this.tab === 'purchase' ? !row.purchaseCost : !row.defaultSellingPrice && !(this.selectedCustomerId && this.customerRules(row).length)));
+    const service = ['Service', 'Services'].includes(row.type);
+    const priced = this.tab === 'purchase'
+      ? row.variantPrices.some(price => price.purchaseCost != null) || (!service && row.purchaseCost != null)
+      : row.variantPrices.some(price => price.sellingPrice != null) || (!service && (row.defaultSellingPrice != null || Boolean(this.selectedCustomerId && this.customerRules(row).length)));
+    return this.statusFilter === 'all' || (this.statusFilter === 'priced') === priced;
   }); }
   get workbookChoicesReady(): boolean { return Boolean(this.workbookValidation?.canCommit) && this.workbookValidation!.products.filter(p => !p.productId).every(p => { const choice = this.decision(p.rowNumber); return choice.confirmed === true && (choice.action !== 'update' || Boolean(choice.productId)) && (choice.action !== 'create' || !p.similarMatches.length || choice.confirmDuplicate === true); }); }
   get allVisibleSelected(): boolean { return this.visibleRows.length > 0 && this.visibleRows.every(row => this.selected.has(row.id)); }
@@ -150,8 +165,8 @@ export class PricingPageComponent implements OnInit, OnDestroy, AfterViewInit {
   displayedRules(row: PricedProduct): PricingRule[] { return this.selectedCustomerId ? this.customerRules(row) : row.rules; }
   toggle(id: string, checked: boolean): void { if (checked) this.selected.add(id); else this.selected.delete(id); this.selected = new Set(this.selected); }
   selectVisible(checked: boolean): void { this.selected = new Set(checked ? this.visibleRows.map(x => x.id) : []); }
-  openPurchase(row: PricedProduct): void { this.current = row; this.purchaseCost = row.purchaseCost || ''; this.taxInclusive = row.taxInclusive; this.separateTaxAmount = row.separateTaxAmount || ''; this.separateTaxId = row.separateTaxId || ''; this.editor = 'purchase'; this.errorKey = ''; }
-  openSelling(row: PricedProduct): void { this.current = row; this.defaultSellingPrice = row.defaultSellingPrice || ''; this.rules = row.rules.map(rule => ({ ...rule, audience: rule.customerUserId ? 'user' : 'everyone' })); this.editor = 'selling'; this.errorKey = ''; }
+  openPurchase(row: PricedProduct): void { this.editVariantPrices(row); this.current = row; this.purchaseCost = row.purchaseCost || ''; this.taxInclusive = row.taxInclusive; this.separateTaxAmount = row.separateTaxAmount || ''; this.separateTaxId = row.separateTaxId || ''; this.editor = 'purchase'; this.errorKey = ''; }
+  openSelling(row: PricedProduct): void { this.editVariantPrices(row); this.current = row; this.defaultSellingPrice = row.defaultSellingPrice || ''; this.rules = row.rules.map(rule => ({ ...rule, audience: rule.customerUserId ? 'user' : 'everyone' })); this.editor = 'selling'; this.errorKey = ''; }
   addRule(): void { this.rules = [...this.rules, { customerUserId: null, audience: 'everyone', minimumQuantity: null, sellingPrice: '', active: true }]; }
   setRuleAudience(index: number, audience: 'everyone' | 'user'): void { this.rules = this.rules.map((rule, i) => i === index ? { ...rule, audience, ...(audience === 'everyone' ? { customerUserId: null, customerName: undefined } : {}) } : rule); this.errorKey = ''; }
   removeRule(index: number): void { this.rules = this.rules.filter((_, i) => i !== index); }
@@ -175,7 +190,8 @@ export class PricingPageComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.editor === 'selling' && this.rules.some(rule => rule.audience === 'user' && !rule.customerUserId)) { this.errorKey = 'f012.userRequired'; return; }
     const payload = this.editor === 'purchase' ? { purchaseCost: this.purchaseCost || null, taxInclusive: this.taxInclusive, separateTaxAmount: this.taxInclusive ? null : this.separateTaxAmount || null, separateTaxId: this.taxInclusive ? null : this.separateTaxId || null, version: this.current.version }
       : { defaultSellingPrice: this.defaultSellingPrice || null, rules: this.rules.map(({ audience, ...rule }) => rule), version: this.current.version };
-    this.saving = true; this.errorKey = ''; this.api.save(this.businessId, this.current.id, payload).subscribe({ next: () => { this.saving = false; this.editor = null; this.noticeKey = 'f012.saved'; this.load(); }, error: e => { this.saving = false; this.errorKey = e.status === 409 ? 'f012.stale' : e.error?.error?.code === 'SEPARATE_TAX_REQUIRED' ? 'f012.separateTaxRequired' : 'f012.saveError'; } });
+    const variantPrices = this.variantPrices.filter(price => price.sellingPrice || price.purchaseCost).map(({ label, ...price }) => price);
+    this.saving = true; this.errorKey = ''; this.api.save(this.businessId, this.current.id, { ...payload, variantPrices }).subscribe({ next: () => { this.saving = false; this.editor = null; this.noticeKey = 'f012.saved'; this.load(); }, error: e => { this.saving = false; this.errorKey = e.status === 409 ? 'f012.stale' : e.error?.error?.code === 'SEPARATE_TAX_REQUIRED' ? 'f012.separateTaxRequired' : 'f012.saveError'; } });
   }
   previewBulk(): void { if (!this.selected.size || !this.bulkValue.trim()) return; this.api.bulk(this.businessId, [...this.selected], this.tab === 'purchase' ? { purchaseCost: this.bulkValue } : { defaultSellingPrice: this.bulkValue }, true).subscribe({ next: r => this.bulkPreviewItems = r.items, error: () => this.errorKey = 'f012.bulkError' }); }
   applyBulk(): void { if (!this.bulkPreviewItems.length) return; this.saving = true; this.api.bulk(this.businessId, [...this.selected], this.tab === 'purchase' ? { purchaseCost: this.bulkValue } : { defaultSellingPrice: this.bulkValue }).subscribe({ next: r => { this.saving = false; this.bulkPreviewItems = []; this.selected.clear(); this.noticeKey = r.failed ? 'f012.bulkPartial' : 'f012.saved'; this.load(); }, error: () => { this.saving = false; this.errorKey = 'f012.bulkError'; } }); }

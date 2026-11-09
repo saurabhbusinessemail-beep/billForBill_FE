@@ -68,20 +68,20 @@ export class InventoryPageComponent implements OnInit, AfterViewInit, OnDestroy 
   get selectedProduct(): InventoryProductOption | undefined { return this.products.find(item => item.id === this.productId); }
   get selectedUnits(): InventoryUnit[] { return this.selectedProduct?.units || []; }
   openAdjustment(product?: InventoryItem): void {
-    this.direction = 'in'; this.productId = product?.id || ''; this.quantity = ''; this.unitId = product?.baseUnitId || ''; this.effectiveDate = this.today(); this.reason = product ? 'count' : 'opening'; this.note = ''; this.formErrorKey = ''; this.noticeKey = ''; this.confirmRemoval = false; this.adjustOpen = true; window.requestAnimationFrame(this.updateFloatingHeading);
+    this.direction = 'in'; this.productId = product?.id || ''; this.quantity = ''; this.unitId = product?.baseUnitKey || ''; this.effectiveDate = this.today(); this.reason = product ? 'count' : 'opening'; this.note = ''; this.formErrorKey = ''; this.noticeKey = ''; this.confirmRemoval = false; this.adjustOpen = true; window.requestAnimationFrame(this.updateFloatingHeading);
   }
-  setProduct(value: string): void { this.productId = value; this.unitId = this.selectedProduct?.baseUnitId || this.selectedUnits[0]?.id || ''; this.formErrorKey = ''; }
+  setProduct(value: string): void { this.productId = value; this.unitId = this.selectedProduct?.baseUnitKey || this.selectedUnits[0]?.id || ''; this.formErrorKey = ''; }
   requestSave(): void {
     this.formErrorKey = '';
-    if (!this.productId || !this.quantity || !this.unitId || !this.effectiveDate || (this.reason === 'other' && !this.note.trim())) { this.formErrorKey = 'f016.requiredFields'; return; }
+    if (!this.selectedProduct || !this.quantity || !this.unitId || !this.effectiveDate || (this.reason === 'other' && !this.note.trim())) { this.formErrorKey = 'f016.requiredFields'; return; }
     if (this.direction === 'out' && !this.confirmRemoval) { this.confirmRemoval = true; return; }
     this.saving = true;
-    this.api.adjust(this.businessId, { productId: this.productId, direction: this.direction, quantity: this.quantity, unitId: this.unitId, effectiveDate: this.effectiveDate, reason: this.reason, note: this.note }).subscribe({ next: () => { this.adjustOpen = false; this.saving = false; this.noticeKey = 'f016.adjustmentSaved'; this.load(); }, error: (error: HttpErrorResponse) => { this.saving = false; this.confirmRemoval = false; this.formErrorKey = error.error?.error?.code === 'INSUFFICIENT_STOCK' ? 'f016.insufficientStock' : error.error?.error?.code === 'INVALID_UNIT' ? 'f016.invalidUnit' : 'f016.saveError'; } });
+    this.api.adjust(this.businessId, { productId: this.selectedProduct.productId, variantKey: this.selectedProduct.variantKey, direction: this.direction, quantity: this.quantity, unitKey: this.unitId, effectiveDate: this.effectiveDate, reason: this.reason, note: this.note }).subscribe({ next: () => { this.adjustOpen = false; this.saving = false; this.noticeKey = 'f016.adjustmentSaved'; this.load(); }, error: (error: HttpErrorResponse) => { this.saving = false; this.confirmRemoval = false; this.formErrorKey = error.error?.error?.code === 'INSUFFICIENT_STOCK' ? 'f016.insufficientStock' : error.error?.error?.code === 'INVALID_UNIT' ? 'f016.invalidUnit' : 'f016.saveError'; } });
   }
   closeAdjustment(): void { if (!this.saving) { this.adjustOpen = false; this.confirmRemoval = false; this.updateFloatingHeading(); } }
-  openLedger(item: InventoryItem): void { this.ledgerLoading = true; this.ledgerErrorKey = ''; this.ledger = null; this.api.ledger(this.businessId, item.id).subscribe({ next: result => { this.ledger = result; this.ledgerLoading = false; }, error: () => { this.ledgerErrorKey = 'f016.ledgerError'; this.ledgerLoading = false; } }); }
+  openLedger(item: InventoryItem): void { this.ledgerLoading = true; this.ledgerErrorKey = ''; this.ledger = null; this.api.ledger(this.businessId, item.productId, item.variantKey).subscribe({ next: result => { this.ledger = result; this.ledgerLoading = false; }, error: () => { this.ledgerErrorKey = 'f016.ledgerError'; this.ledgerLoading = false; } }); }
   closeLedger(): void { this.ledger = null; }
-  saveReorderLevel(item: InventoryItem): void { const value = this.reorderDraft[item.id] ?? ''; this.reorderSaving = item.id; this.api.reorderLevel(this.businessId, item.id, value).subscribe({ next: () => { this.reorderSaving = ''; this.load(); }, error: () => { this.reorderSaving = ''; this.errorKey = 'f016.reorderSaveError'; } }); }
+  saveReorderLevel(item: InventoryItem): void { const value = this.reorderDraft[item.id] ?? ''; this.reorderSaving = item.id; this.api.reorderLevel(this.businessId, item.productId, item.variantKey, value).subscribe({ next: () => { this.reorderSaving = ''; this.load(); }, error: () => { this.reorderSaving = ''; this.errorKey = 'f016.reorderSaveError'; } }); }
   statusKey(status: InventoryItem['status']): string { return `f016.status.${status}`; }
   reasonKey(reason: string): string { return `f016.reason.${reason}`; }
   date(value: string | null): string { if (!value) return '—'; const [y,m,d] = value.slice(0,10).split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString(); }

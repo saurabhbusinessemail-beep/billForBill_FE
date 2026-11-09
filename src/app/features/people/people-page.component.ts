@@ -38,8 +38,14 @@ export class PeoplePageComponent implements OnInit, AfterViewInit, OnDestroy {
   load(preserveContent = false): void { const version = ++this.requestVersion; if (!preserveContent) this.loading = true; this.errorKey = ''; this.api.people(this.businessId, this.search, this.page).subscribe({ next: r => { if (version !== this.requestVersion) return; this.people = r.items; this.total = r.total; this.hasNextPage = r.hasNextPage; this.canAdd = Boolean(r.authorization?.isOwner || r.authorization?.permissionKeys.includes('people.add')); this.canRemove = Boolean(r.authorization?.isOwner || r.authorization?.permissionKeys.includes('people.remove')); this.loading = false; }, error: () => { if (version !== this.requestVersion) return; this.errorKey = 'f006.loadPeopleError'; this.loading = false; } }); }
   searchChanged(): void { this.requestVersion++; this.searchChanges.next(this.search); }
   toggleFloatingSearch(event: MouseEvent): void { this.floatingSearchOpen = !this.floatingSearchOpen; if (this.floatingSearchOpen) this.floatingSearchTop = (event.currentTarget as HTMLElement).getBoundingClientRect().bottom + 6; else window.requestAnimationFrame(this.updateFloatingHeading); }
-  @HostListener('document:keydown.escape') closeFloatingSearchOnEscape(): void { if (this.floatingSearchOpen) { this.floatingSearchOpen = false; window.requestAnimationFrame(this.updateFloatingHeading); } }
-  @HostListener('document:click', ['$event']) closeFloatingSearchOnOutsideClick(event: MouseEvent): void { const target = event.target as HTMLElement | null; if (this.floatingSearchOpen && !target?.closest('.people-floating-search-menu, .people-floating-search-action')) { this.floatingSearchOpen = false; window.requestAnimationFrame(this.updateFloatingHeading); } }
+  @HostListener('document:keydown.escape') closeOverlaysOnEscape(): void {
+    if (this.floatingSearchOpen) { this.floatingSearchOpen = false; window.requestAnimationFrame(this.updateFloatingHeading); }
+  }
+  @HostListener('document:click', ['$event']) closeOverlaysOnOutsideClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+
+    if (this.floatingSearchOpen && !target?.closest('.people-floating-search-menu, .people-floating-search-action')) { this.floatingSearchOpen = false; window.requestAnimationFrame(this.updateFloatingHeading); }
+  }
   changePage(page: number): void { if (page < 1 || (page > this.page && !this.hasNextPage)) return; this.page = page; this.load(); }
   openAdd(): void { this.dialog = true; this.name = ''; this.phone = ''; this.lookupState = 'idle'; this.errorKey = ''; }
   close(): void { if (!this.saving) this.dialog = false; }

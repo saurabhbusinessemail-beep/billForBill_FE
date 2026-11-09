@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { map, Observable, shareReplay, tap } from 'rxjs';
-import { CatalogDeleteImpact, CatalogKind, CatalogRecord, CatalogResponse, OpenFoodFactsSyncResult } from './catalog.models';
+import { CatalogDeleteImpact, CatalogKind, CatalogRecord, CatalogResponse } from './catalog.models';
 import { BusinessAdminService } from '../../people/business-admin.service';
 import { apiBaseUrl } from '../../../app-config';
 
@@ -11,6 +11,14 @@ const ADMIN_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHED_ADMIN_CATALOGS = new Set<CatalogKind>(['products', 'categories', 'attributes', 'units', 'taxes']);
 
 interface CachedCatalogList { expiresAt: number; request: Observable<CatalogRecord[]>; }
+export interface BarcodeSuggestion {
+  gtin: string;
+  title: string;
+  mrp: string | null;
+  brand: string;
+  images: string[];
+  attributes: Record<string, string>;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CatalogApiService {
@@ -18,6 +26,10 @@ export class CatalogApiService {
   private readonly adminCatalogLists = new Map<string, CachedCatalogList>();
   constructor(private readonly http: HttpClient, private readonly sanitizer: DomSanitizer, private readonly businessAdmin: BusinessAdminService) {}
   private path(kind: CatalogKind, businessId?: string): string { return businessId ? `${API}/businesses/${encodeURIComponent(businessId)}/catalog/${kind}` : `${API}/admin-setup/${kind}`; }
+  lookupBarcode(gtin: string, businessId?: string): Observable<BarcodeSuggestion | null> {
+    return this.http.get<CatalogResponse<BarcodeSuggestion | null>>(`${this.path('products', businessId)}/barcode-lookup`,
+      { withCredentials: true, params: { gtin } }).pipe(map(result => result.data));
+  }
   list(kind: CatalogKind, q = '', businessId?: string): Observable<CatalogRecord[]> {
     const load = () => this.http.get<CatalogResponse<CatalogRecord[]>>(this.path(kind, businessId), { withCredentials: true, params: q ? { q } : {} }).pipe(map(r => r.data));
     if (businessId || !CACHED_ADMIN_CATALOGS.has(kind)) return load();
@@ -64,15 +76,7 @@ export class CatalogApiService {
       .pipe(map(blob => this.sanitizer.bypassSecurityTrustUrl(URL.createObjectURL(blob))), shareReplay({ bufferSize: 1, refCount: false }));
     this.productImages.set(cacheKey, image); return image;
   }
-  saveOpenFoodFactsConfig(id: string, data: { countryTag: string; categoryTags: string[]; isActive: boolean }): Observable<unknown> {
-    return this.http.put<CatalogResponse<unknown>>(`${API}/admin-setup/business-types/${encodeURIComponent(id)}/open-food-facts-config`, data, { withCredentials: true }).pipe(map(r => r.data), tap(() => this.adminCatalogLists.delete('business-types|')));
-  }
-  openFoodFactsTaxonomy(q: string, categories: string[]): Observable<Array<{ tag: string; name: string }>> {
-    return this.http.get<CatalogResponse<Array<{ tag: string; name: string }>>>(`${API}/admin-setup/business-types/open-food-facts-taxonomy`, { withCredentials: true, params: { tagType: 'categories', q, categories: categories.join('|') } }).pipe(map(r => r.data));
-  }
-  syncOpenFoodFacts(id: string, dryRun: boolean, maxProducts: number, pageOffset: number): Observable<OpenFoodFactsSyncResult> {
-    return this.http.post<CatalogResponse<OpenFoodFactsSyncResult>>(`${API}/admin-setup/business-types/${encodeURIComponent(id)}/open-food-facts-sync`, { dryRun, maxProducts, pageOffset }, { withCredentials: true }).pipe(map(r => r.data), tap(result => { this.adminCatalogLists.clear(); if (!result.dryRun) this.productImages.clear(); }));
-  }
+  clearAfterCleanup(): void { this.adminCatalogLists.clear(); this.productImages.clear(); this.businessAdmin.clear(); }
 
   private afterMutation(kind: CatalogKind, businessId?: string): void {
     if (!businessId && CACHED_ADMIN_CATALOGS.has(kind)) this.adminCatalogLists.clear();

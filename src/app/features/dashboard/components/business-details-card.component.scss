@@ -1,1 +1,66 @@
+@use '../../../../styles/mixin' as mixin;
+
 :host { display: block; }
+
+.business-details-card__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+}
+
+.business-details-card__identity.has-balances {
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+}
+
+.business-details-card__actions {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  align-self: start;
+  justify-self: start;
+  margin-left: 0;
+}
+
+.business-details-card__balances {
+  display: grid;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-items: end;
+  gap: .35rem;
+  min-width: 0;
+  text-align: end;
+}
+
+.business-details-card__balances dl {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .35rem .75rem;
+  margin: 0;
+}
+
+.business-details-card__balances dt,
+.business-details-card__balances small {
+  color: var(--theme-text-muted);
+  font-size: .65rem;
+}
+
+.business-details-card__balances dd {
+  margin: 0;
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+
+.business-details-card__balances small {
+  display: block;
+}
+
+@include mixin.mobile {
+  .business-details-card__identity.has-balances {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 46%);
+    gap: .4rem;
+  }
+}

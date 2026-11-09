@@ -1,0 +1,17 @@
+@use '../../../styles/mixin' as screens;
+
+.customer-vendor__set {
+  flex: 0 0 auto;
+  font-size: .8rem;
+}
+
+@include screens.mobile {
+  .people-list .person {
+    flex-wrap: wrap;
+  }
+
+  .customer-vendor__set {
+    margin-inline-start: auto;
+    padding: .45rem .65rem;
+  }
+}

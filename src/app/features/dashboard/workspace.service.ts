@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { catchError, finalize, forkJoin, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
-import { ApiResponse, BusinessDetails, Workspace, WorkspaceOverview, WorkspaceSetupChoice, WorkingAtWorkspacesResponse } from './workspace.models';
+import { ApiResponse, BusinessDetails, BusinessTypeOption, Workspace, WorkspaceOverview, WorkspaceSetupChoice, WorkingAtWorkspacesResponse } from './workspace.models';
 import { apiBaseUrl } from '../../app-config';
 
 const API_BASE = apiBaseUrl();
@@ -59,6 +59,11 @@ export class WorkspaceService {
     return this.http.put<ApiResponse<{ setupChoice: WorkspaceSetupChoice }>>(
       `${API_BASE}/workspaces/setup-choice`, { choice }, { withCredentials: true },
     ).pipe(map((response) => response.data.setupChoice));
+  }
+
+  listBusinessTypes(): Observable<BusinessTypeOption[]> {
+    return this.http.get<ApiResponse<BusinessTypeOption[]>>(`${API_BASE}/businesses/business-types`, { withCredentials: true })
+      .pipe(map(response => response.data));
   }
 
   createBusiness(details: BusinessDetails, requestKey: string): Observable<Workspace> {

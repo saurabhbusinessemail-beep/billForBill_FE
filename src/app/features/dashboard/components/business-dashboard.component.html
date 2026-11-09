@@ -1,6 +1,11 @@
 <section class="f007-denied" *ngIf="permissionDenied" role="alert">{{ 'f007.permissionDenied' | translate }}</section>
 <ng-container *ngIf="!permissionDenied">
-<app-business-details-card *ngIf="!business.workingAt" [business]="business" (edit)="editBusiness.emit()"></app-business-details-card>
+<app-business-details-card *ngIf="!business.workingAt" [business]="business"
+  [canManageOpeningBalance]="permissionKeys.has(openingBalancesPermission)" (edit)="editBusiness.emit()"></app-business-details-card>
+<ng-container *ngIf="business.workingAt && permissionKeys.has(openingBalancesPermission)">
+  <button class="f029-opening-action" type="button" (click)="balanceDialog.open()">{{ 'f029.set' | translate }}</button>
+  <app-opening-balance-dialog #balanceDialog [businessId]="business.id"></app-opening-balance-dialog>
+</ng-container>
 <section class="f006-summary" *ngIf="counts as c" aria-label="{{ 'f006.summary' | translate }}">
   <button type="button" (click)="open('people')"><span class="summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9 2a4 4 0 0 1 3 4v2m-3-18a4 4 0 0 1 0 8" /></svg></span><span class="summary-arrow" aria-hidden="true">→</span><strong>{{ c.people }}</strong><span class="summary-label">{{ 'f006.people' | translate }}</span><small>{{ 'f006.summaryPeopleHint' | translate }}</small></button>
   <button type="button" (click)="open('teams')"><span class="summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V5h10v16m0-11h4v11M8 8h4m-4 4h4m-4 4h4m8-2h-1m1 4h-1" /></svg></span><span class="summary-arrow" aria-hidden="true">→</span><strong>{{ c.teams }}</strong><span class="summary-label">{{ 'f006.teams' | translate }}</span><small>{{ 'f006.summaryTeamsHint' | translate }}</small></button>
